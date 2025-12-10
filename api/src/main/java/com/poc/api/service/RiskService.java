@@ -8,6 +8,10 @@ import com.poc.api.model.Telemetry;
 import com.poc.api.persistence.DecisionLogRepository;
 import com.poc.api.persistence.DeviceProfile;
 import com.poc.api.persistence.SessionFeatureRepository;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -25,6 +29,8 @@ public class RiskService {
   private final SessionFeatureRepository sessionFeatureRepository;
   private final DecisionLogRepository decisionLogRepository;
   private final ContextEnricher contextEnricher;
+  private final MeterRegistry meterRegistry;
+  private static final Logger log = LoggerFactory.getLogger(RiskService.class);
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   public RiskService(DeviceProfileService deviceProfileService,
@@ -34,7 +40,8 @@ public class RiskService {
                      ModelProvider modelProvider,
                      SessionFeatureRepository sessionFeatureRepository,
                      DecisionLogRepository decisionLogRepository,
-                     ContextEnricher contextEnricher) {
+                     ContextEnricher contextEnricher,
+                     MeterRegistry meterRegistry) {
     this.deviceProfileService = deviceProfileService;
     this.behaviorStatsService = behaviorStatsService;
     this.featureBuilder = featureBuilder;
@@ -43,9 +50,11 @@ public class RiskService {
     this.sessionFeatureRepository = sessionFeatureRepository;
     this.decisionLogRepository = decisionLogRepository;
     this.contextEnricher = contextEnricher;
+    this.meterRegistry = meterRegistry;
   }
 
-  public DecisionResponse score(String tlsFp, Telemetry telemetry, String ip, String reqId) {
+    public DecisionResponse score(String tlsFp, Telemetry telemetry, String ip, String reqId) {
+    long startNs = System.nanoTime();
     String userId = telemetry.user_id_hint() != null && !telemetry.user_id_hint().isBlank()
         ? telemetry.user_id_hint()
         : "anonymous";
@@ -66,30 +75,31 @@ public class RiskService {
       if (v instanceof Boolean b) {
         vpn = b;
       }
-      Object h = context.get("high_risk_action");
-      if (h instanceof Boolean b) {
+      Object a = context.get("highRiskAction");
+      if (a instanceof Boolean b) {
         highRiskAction = b;
       }
-      Object o = context.get("profiling_opt_out");
+      Object o = context.get("profilingOptOut");
       if (o instanceof Boolean b) {
         profilingOptOut = b;
       }
     }
 
-    DeviceProfile profile = null;
-    if (!profilingOptOut) {
-      profile = deviceProfileService.upsert(userId, tlsFp, country, telemetry.device());
-    }
+    // Update behavior stats and compute similarity
+    BehaviorStatsService.BehaviorSimilarityResult behaviorResult =
+        behaviorStatsService.updateAndComputeSimilarity(userId, telemetry.behavior());
+    double behaviorSim = behaviorResult.score();
 
-    BehaviorStatsService.BehaviorSimilarityResult behaviorRes =
-        behaviorStatsService.updateAndComputeSimilarity(
-            profilingOptOut ? null : userId,
-            telemetry.behavior()
-        );
+    // Upsert device profile and derive simple context flags
+    DeviceProfile deviceProfile = deviceProfileService.upsert(userId, tlsFp, country, telemetry.device());
+    boolean newDevice = deviceProfile != null && deviceProfile.seenCount == 1L;
+    boolean newTlsFingerprint = newDevice; // same uniqueness key (userId + tlsFp + canvas)
 
+    // Build feature vector used by the ML layer
     FeatureBuilder.Features features =
-        featureBuilder.build(profile, behaviorRes.score(), tlsFp, telemetry, context);
+        featureBuilder.build(deviceProfile, behaviorSim, tlsFp, telemetry, context);
 
+    // ML probability that this session is legit
     double pLegit = modelProvider.predict(
         features.deviceScore(),
         features.behaviorScore(),
@@ -97,17 +107,18 @@ public class RiskService {
         features.contextScore()
     );
 
+    // Rules engine on top of ML
     RulesEngine.FeaturesWithContext fctx = new RulesEngine.FeaturesWithContext(
-        profile,
+        deviceProfile,
         country,
         vpn,
-        profile == null || profile.seenCount <= 1,
-        profile == null || profile.seenCount <= 1,
+        newDevice,
+        newTlsFingerprint,
         highRiskAction,
-        profile != null ? profile.lastSeen : null
+        deviceProfile != null ? deviceProfile.lastSeen : null
     );
-
     RulesEngine.Decision rulesDecision = rulesEngine.apply(fctx, pLegit);
+
     String decision;
     switch (rulesDecision) {
       case ALLOW -> decision = "AUTO_LOGIN";
@@ -116,7 +127,7 @@ public class RiskService {
       default -> decision = "DENY";
     }
 
-    Map<String, Double> breakdown = Map.of(
+    var breakdown = Map.of(
         "device_score", features.deviceScore(),
         "behavior_score", features.behaviorScore(),
         "tls_score", features.tlsScore(),
@@ -135,10 +146,19 @@ public class RiskService {
         // In PoC we don't fail the request on logging errors.
       }
 
-      // Persist decision log
       decisionLogRepository.insert(sessionId, userId, tlsFp != null ? tlsFp : "none",
           features.behaviorScore(), features.deviceScore(), features.contextScore(), pLegit, decision);
     }
+
+    long durationNs = System.nanoTime() - startNs;
+    meterRegistry.timer("riskapi.score.latency").record(durationNs, java.util.concurrent.TimeUnit.NANOSECONDS);
+    meterRegistry.counter("riskapi.score.total").increment();
+    meterRegistry.counter("riskapi.score.decision", "decision", decision).increment();
+
+    log.info("risk_decision sessionId={} userId={} tlsFp={} decision={} pLegit={} deviceScore={} behaviorScore={} tlsScore={} contextScore={} country={} vpn={} profilingOptOut={}",
+        sessionId, userId, tlsFp != null ? tlsFp : "none", decision, pLegit,
+        features.deviceScore(), features.behaviorScore(), features.tlsScore(), features.contextScore(),
+        country, vpn, profilingOptOut);
 
     var explanations = profilingOptOut
         ? List.of("ML + rules engine decision", "profiling opt-out: no data stored")
@@ -152,4 +172,5 @@ public class RiskService {
         sessionId
     );
   }
+
 }
