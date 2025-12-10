@@ -6,6 +6,7 @@ import { DeviceCard } from "./components/DeviceCard";
 import { TlsPanel } from "./components/TlsPanel";
 import { BehaviorPanel } from "./components/BehaviorPanel";
 import { SessionTimeline } from "./components/SessionTimeline";
+import { UsersOverview } from "./components/UsersOverview";
 import { ChaosToggles } from "./components/ChaosToggles";
 
 function App() {
@@ -13,6 +14,7 @@ function App() {
   const [decision, setDecision] = useState<DecisionResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [demoUser, setDemoUser] = useState<string>("demo-user");
 
   useEffect(() => {
     startProfiler();
@@ -22,7 +24,8 @@ function App() {
     setError(null);
     setLoading(true);
     try {
-      const payload = snapshotTelemetry("demo-user");
+      const userHint = demoUser.trim() || "demo-user";
+      const payload = snapshotTelemetry(userHint);
       setTelemetry(payload);
       const resp = await postProfileCheck(payload);
       setDecision(resp);
@@ -43,6 +46,23 @@ function App() {
         </p>
       </header>
 
+            <div style={userRowStyle}>
+        <label style={{ fontWeight: 500 }}>
+          Demo user handle:
+          <input
+            type="text"
+            value={demoUser}
+            onChange={e => setDemoUser(e.target.value)}
+            placeholder="e.g. mark-demo, alice-laptop"
+            style={inputStyle}
+          />
+        </label>
+        <span style={{ fontSize: "0.85rem", color: "#4b5563" }}>
+          This handle is sent as <code>user_id_hint</code> and used to group sessions and devices.
+        </span>
+      </div>
+
+
       <div style={{ marginBottom: "1rem" }}>
         <button onClick={runProfileCheck} disabled={loading} style={buttonStyle}>
           {loading ? "Running profile check..." : "Run profile check"}
@@ -60,8 +80,9 @@ function App() {
         <ChaosToggles />
       </section>
 
-      <section style={{ marginTop: "1.5rem" }}>
-        <SessionTimeline userHint="demo-user" />
+      <section style={gridTwoCols}>
+        <SessionTimeline userHint={demoUser.trim() || "demo-user"} />
+        <UsersOverview />
       </section>
 
       {decision && (
@@ -100,6 +121,26 @@ const gridTwoCols = {
   gap: "1rem",
   alignItems: "stretch",
   marginTop: "1rem"
+};
+
+const userRowStyle = {
+  marginTop: "1rem",
+  marginBottom: "0.75rem",
+  display: "flex",
+  flexDirection: "column",
+  gap: "0.25rem",
+  maxWidth: 520
+};
+
+const inputStyle = {
+  display: "block",
+  marginTop: "0.25rem",
+  padding: "0.35rem 0.5rem",
+  borderRadius: 6,
+  border: "1px solid #d1d5db",
+  fontSize: "0.9rem",
+  width: "100%",
+  maxWidth: 260
 };
 
 const buttonStyle = {

@@ -54,6 +54,15 @@ export interface SessionSummary {
   createdAt: string;
 }
 
+export interface UserSummary {
+  userId: string;
+  sessions: number;
+  devices: number;
+  lastSeen: string;
+  avgConfidence: number;
+}
+
+
 //const API_BASE = "/api";
 const API_BASE = "https://localhost:8443/api";
 
@@ -79,4 +88,13 @@ export async function fetchSessions(userHint: string, limit = 20): Promise<Sessi
     throw new Error(`Failed to fetch sessions: ${res.status}`);
   }
   return (await res.json()) as SessionSummary[];
+}
+
+export async function fetchUserSummaries(limit = 20): Promise<UserSummary[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const res = await fetch(`${API_BASE}/showcase/users?${params.toString()}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch users: ${res.status}`);
+  }
+  return (await res.json()) as UserSummary[];
 }

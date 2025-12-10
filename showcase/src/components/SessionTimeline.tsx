@@ -42,6 +42,9 @@ export function SessionTimeline({ userHint }: SessionTimelineProps) {
   return (
     <div style={cardStyle}>
       <h2>Session timeline</h2>
+      <p style={{ fontSize: "0.8rem", color: "#6b7280" }}>
+        User hint: <code>{userHint}</code>
+      </p>
       {loading && sessions.length === 0 && <p>Loading...</p>}
       {error && <p style={{ color: "red" }}>{error}</p>}
       {sessions.length === 0 && !loading && !error && <p>No sessions yet.</p>}

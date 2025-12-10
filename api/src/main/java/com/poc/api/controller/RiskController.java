@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import com.poc.api.persistence.UserSummaryRow;
 
 @RestController
 @RequestMapping("/api")
@@ -43,6 +44,14 @@ public class RiskController {
       @RequestParam(name = "limit", defaultValue = "20") int limit
   ) {
     var rows = decisionLogRepository.findRecentByUser(userHint, limit);
+    return ResponseEntity.ok(rows);
+  }
+
+  @GetMapping("/showcase/users")
+  public ResponseEntity<List<UserSummaryRow>> users(
+      @RequestParam(name = "limit", defaultValue = "20") int limit
+  ) {
+    var rows = decisionLogRepository.findUserSummaries(limit);
     return ResponseEntity.ok(rows);
   }
 }

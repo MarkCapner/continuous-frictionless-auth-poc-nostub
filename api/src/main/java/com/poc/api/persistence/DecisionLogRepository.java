@@ -42,4 +42,30 @@ public class DecisionLogRepository {
       return r;
     }, userId, limit);
   }
+
+  public List<UserSummaryRow> findUserSummaries(int limit) {
+    String sql = """
+        SELECT
+          COALESCE(user_id, 'anonymous') AS user_id,
+          COUNT(*) AS sessions,
+          COUNT(DISTINCT tls_fp) AS devices,
+          MAX(created_at) AS last_seen,
+          AVG(confidence) AS avg_confidence
+        FROM decision_log
+        GROUP BY COALESCE(user_id, 'anonymous')
+        ORDER BY last_seen DESC
+        LIMIT ?
+        """;
+
+    return jdbc.query(sql, (rs, rowNum) -> {
+      UserSummaryRow row = new UserSummaryRow();
+      row.userId = rs.getString("user_id");
+      row.sessions = rs.getLong("sessions");
+      row.devices = rs.getLong("devices");
+      row.lastSeen = rs.getObject("last_seen", OffsetDateTime.class);
+      row.avgConfidence = rs.getDouble("avg_confidence");
+      return row;
+    }, limit);
+  }
+
 }
