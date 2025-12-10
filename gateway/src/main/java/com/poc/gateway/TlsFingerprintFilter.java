@@ -21,6 +21,7 @@ public class TlsFingerprintFilter implements GlobalFilter, Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         SslInfo sslInfo = exchange.getRequest().getSslInfo();
         String fp = "no-tls";
+        String meta = "no-tls";
 
         if (sslInfo != null) {
             try {
@@ -33,20 +34,30 @@ public class TlsFingerprintFilter implements GlobalFilter, Ordered {
                     digest.update(sessionId.getBytes(StandardCharsets.UTF_8));
                 }
 
+                int certLen = 0;
+                boolean peerPresent = false;
+
                 if (peerCerts != null && peerCerts.length > 0 && peerCerts[0] != null) {
-                    digest.update((byte) 0);
+                    peerPresent = true;
                     byte[] encoded = peerCerts[0].getEncoded();
+                    certLen = encoded.length;
+                    digest.update((byte) 0);
                     digest.update(encoded);
                 }
 
                 fp = HexFormat.of().formatHex(digest.digest());
+                meta = "session_present=" + (sessionId != null ? "1" : "0")
+                        + ";peer_present=" + (peerPresent ? "1" : "0")
+                        + ";peer_cert_len=" + certLen;
             } catch (Exception e) {
                 fp = "tls-error";
+                meta = "tls-error";
             }
         }
 
         ServerHttpRequest mutated = exchange.getRequest().mutate()
                 .header("X-TLS-FP", fp)
+                .header("X-TLS-Meta", meta)
                 .build();
 
         return chain.filter(exchange.mutate().request(mutated).build());

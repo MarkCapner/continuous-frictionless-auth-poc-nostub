@@ -24,6 +24,7 @@ public class RiskService {
   private final ModelProvider modelProvider;
   private final SessionFeatureRepository sessionFeatureRepository;
   private final DecisionLogRepository decisionLogRepository;
+  private final ContextEnricher contextEnricher;
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   public RiskService(DeviceProfileService deviceProfileService,
@@ -32,7 +33,8 @@ public class RiskService {
                      RulesEngine rulesEngine,
                      ModelProvider modelProvider,
                      SessionFeatureRepository sessionFeatureRepository,
-                     DecisionLogRepository decisionLogRepository) {
+                     DecisionLogRepository decisionLogRepository,
+                     ContextEnricher contextEnricher) {
     this.deviceProfileService = deviceProfileService;
     this.behaviorStatsService = behaviorStatsService;
     this.featureBuilder = featureBuilder;
@@ -40,6 +42,7 @@ public class RiskService {
     this.modelProvider = modelProvider;
     this.sessionFeatureRepository = sessionFeatureRepository;
     this.decisionLogRepository = decisionLogRepository;
+    this.contextEnricher = contextEnricher;
   }
 
   public DecisionResponse score(String tlsFp, Telemetry telemetry, String ip, String reqId) {
@@ -48,24 +51,26 @@ public class RiskService {
         : "anonymous";
     String sessionId = (reqId != null && !reqId.isBlank()) ? reqId : UUID.randomUUID().toString();
 
+    Map<String, Object> context = contextEnricher.enrich(ip, telemetry.context());
+
     String country = null;
     boolean vpn = false;
     boolean highRiskAction = false;
     boolean profilingOptOut = false;
-    if (telemetry.context() != null) {
-      Object c = telemetry.context().get("country");
+    if (context != null) {
+      Object c = context.get("country");
       if (c instanceof String s) {
         country = s;
       }
-      Object v = telemetry.context().get("vpn");
+      Object v = context.get("vpn");
       if (v instanceof Boolean b) {
         vpn = b;
       }
-      Object h = telemetry.context().get("high_risk_action");
+      Object h = context.get("high_risk_action");
       if (h instanceof Boolean b) {
         highRiskAction = b;
       }
-      Object o = telemetry.context().get("profiling_opt_out");
+      Object o = context.get("profiling_opt_out");
       if (o instanceof Boolean b) {
         profilingOptOut = b;
       }
@@ -83,7 +88,7 @@ public class RiskService {
         );
 
     FeatureBuilder.Features features =
-        featureBuilder.build(profile, behaviorRes.score(), tlsFp, telemetry);
+        featureBuilder.build(profile, behaviorRes.score(), tlsFp, telemetry, context);
 
     double pLegit = modelProvider.predict(
         features.deviceScore(),
@@ -122,7 +127,7 @@ public class RiskService {
       try {
         String deviceJson = objectMapper.writeValueAsString(telemetry.device());
         String behaviorJson = objectMapper.writeValueAsString(telemetry.behavior());
-        String contextJson = objectMapper.writeValueAsString(telemetry.context());
+        String contextJson = objectMapper.writeValueAsString(context);
         String featureVectorJson = objectMapper.writeValueAsString(breakdown);
         sessionFeatureRepository.insert(userId, sessionId, tlsFp != null ? tlsFp : "none",
             deviceJson, behaviorJson, contextJson, featureVectorJson, decision, pLegit, null);

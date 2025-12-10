@@ -4,6 +4,8 @@ import com.poc.api.model.Telemetry;
 import com.poc.api.persistence.DeviceProfile;
 import org.springframework.stereotype.Service;
 
+import java.util.Map;
+
 @Service
 public class FeatureBuilder {
 
@@ -14,25 +16,29 @@ public class FeatureBuilder {
       double contextScore
   ) {}
 
-  public Features build(DeviceProfile deviceProfile, double behaviorSimilarity,
-                        String tlsFp, Telemetry telemetry) {
+  public Features build(DeviceProfile deviceProfile,
+                        double behaviorSimilarity,
+                        String tlsFp,
+                        Telemetry telemetry,
+                        Map<String, Object> context) {
 
-    // Device similarity based on deltas to stored profile
     Telemetry.Device d = telemetry.device();
+
     double deviceSim = 0.5;
-
     if (deviceProfile != null && d != null && d.screen() != null) {
-      double screenWDelta = Math.abs(d.screen().w() - deviceProfile.screenW);
-      double screenHDelta = Math.abs(d.screen().h() - deviceProfile.screenH);
-      double pixelRatioDelta = Math.abs(d.screen().pixel_ratio() - deviceProfile.pixelRatio);
-      double tzDelta = Math.abs((double) d.tz_offset() - deviceProfile.tzOffset);
+      var screen = d.screen();
+      double wDelta = Math.abs(deviceProfile.screenW - screen.w());
+      double hDelta = Math.abs(deviceProfile.screenH - screen.h());
+      double prDelta = Math.abs(deviceProfile.pixelRatio - screen.pixel_ratio());
 
-      double wSim = Math.exp(-screenWDelta / 200.0);
-      double hSim = Math.exp(-screenHDelta / 200.0);
-      double prSim = Math.exp(-pixelRatioDelta / 0.5);
+      double wSim = Math.exp(-wDelta / 200.0);
+      double hSim = Math.exp(-hDelta / 200.0);
+      double prSim = Math.exp(-prDelta / 1.0);
+
+      double tzDelta = Math.abs(deviceProfile.tzOffset - d.tz_offset());
       double tzSim = Math.exp(-tzDelta / 60.0);
 
-      deviceSim = 0.25 * (wSim + hSim + prSim + tzSim);
+      deviceSim = (wSim + hSim + prSim + tzSim) / 4.0;
     }
 
     double deviceScore = deviceSim;
@@ -41,11 +47,24 @@ public class FeatureBuilder {
     double tlsScore = (tlsFp != null && !tlsFp.isBlank()) ? 0.9 : 0.5;
 
     double contextScore = 0.5;
-    if (telemetry.context() != null) {
-      Object hourObj = telemetry.context().get("hour");
+    if (context != null) {
+      Object hourObj = context.get("hour");
+      Integer hour = null;
       if (hourObj instanceof Number hourNum) {
-        int hour = hourNum.intValue();
-        contextScore = (hour >= 8 && hour <= 20) ? 0.7 : 0.5;
+        hour = hourNum.intValue();
+      }
+      boolean weekend = false;
+      Object weekendObj = context.get("weekend");
+      if (weekendObj instanceof Boolean b) {
+        weekend = b;
+      }
+      if (hour != null) {
+        // reward typical working hours on non-weekend days
+        if (!weekend && hour >= 8 && hour <= 20) {
+          contextScore = 0.7;
+        } else {
+          contextScore = 0.5;
+        }
       }
     }
 
