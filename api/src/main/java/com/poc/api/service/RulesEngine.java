@@ -17,7 +17,9 @@ public class RulesEngine {
     public enum Decision {
         ALLOW,
         CHALLENGE,
-        DENY
+        DENY,
+        AUTO_LOGIN,
+        STEP_UP
     }
 
     public static class FeaturesWithContext {

@@ -24,6 +24,7 @@ public class RiskService {
   private final ModelProvider modelProvider;
   private final SessionFeatureRepository sessionFeatureRepository;
   private final DecisionLogRepository decisionLogRepository;
+  private final AccountSharingHeuristics accountSharingHeuristics;
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   public RiskService(DeviceProfileService deviceProfileService,
@@ -32,7 +33,8 @@ public class RiskService {
                      RulesEngine rulesEngine,
                      ModelProvider modelProvider,
                      SessionFeatureRepository sessionFeatureRepository,
-                     DecisionLogRepository decisionLogRepository) {
+                     DecisionLogRepository decisionLogRepository,
+                     AccountSharingHeuristics accountSharingHeuristics) {
     this.deviceProfileService = deviceProfileService;
     this.behaviorStatsService = behaviorStatsService;
     this.featureBuilder = featureBuilder;
@@ -40,6 +42,7 @@ public class RiskService {
     this.modelProvider = modelProvider;
     this.sessionFeatureRepository = sessionFeatureRepository;
     this.decisionLogRepository = decisionLogRepository;
+    this.accountSharingHeuristics = accountSharingHeuristics;
   }
 
   public DecisionResponse score(String tlsFp, String tlsMeta, Telemetry telemetry, String ip, String reqId) {
@@ -68,9 +71,15 @@ public class RiskService {
     // Build feature vector
     FeatureBuilder.Features features = featureBuilder.build(profile, behaviorRes.score(), tlsFp, telemetry);
 
-    // ML prediction via Tribuo
-    double pLegit = modelProvider.predict(features.deviceScore(), features.behaviorScore(),
+    // Anomaly score based on behavior similarity (1 - similarity, clamped to [0,1])
+    double anomalyScore = 1.0 - behaviorRes.score();
+    if (anomalyScore < 0.0) anomalyScore = 0.0;
+    if (anomalyScore > 1.0) anomalyScore = 1.0;
+
+    // ML prediction via Tribuo, then penalise by anomalyScore
+    double rawPLegit = modelProvider.predict(features.deviceScore(), features.behaviorScore(),
         features.tlsScore(), features.contextScore());
+    double pLegit = rawPLegit * (1.0 - 0.5 * anomalyScore);
 
     // Rules
     RulesEngine.FeaturesWithContext fctx = new RulesEngine.FeaturesWithContext(
@@ -85,11 +94,28 @@ public class RiskService {
     RulesEngine.Decision decisionEnum = rulesEngine.apply(fctx, pLegit);
     String decision = decisionEnum.name();
 
+    // Account sharing / multi-device heuristics
+    AccountSharingHeuristics.Result heuristics = accountSharingHeuristics.evaluate(userId);
+    boolean suspiciousAccountSharing = heuristics.suspicious();
+    if (suspiciousAccountSharing && decisionEnum == RulesEngine.Decision.AUTO_LOGIN) {
+      decisionEnum = RulesEngine.Decision.STEP_UP;
+      decision = decisionEnum.name();
+    }
+
+    java.util.List<String> explanations = new java.util.ArrayList<>();
+    explanations.add("ML + rules engine decision");
+    if (suspiciousAccountSharing) {
+      explanations.add("Account-sharing heuristic triggered: "
+          + heuristics.tlsFingerprintCount() + " TLS fingerprints, "
+          + heuristics.countryCount() + " countries observed for this user");
+    }
+
     Map<String, Double> breakdown = Map.of(
         "device_score", features.deviceScore(),
         "behavior_score", features.behaviorScore(),
         "tls_score", features.tlsScore(),
-        "context_score", features.contextScore()
+        "context_score", features.contextScore(),
+        "anomaly_score", anomalyScore
     );
 
     // Persist session features
@@ -112,7 +138,7 @@ public class RiskService {
         decision,
         pLegit,
         breakdown,
-        List.of("ML + rules engine decision"),
+        explanations,
         sessionId,
         tlsFp != null ? tlsFp : "none",
         tlsMeta
