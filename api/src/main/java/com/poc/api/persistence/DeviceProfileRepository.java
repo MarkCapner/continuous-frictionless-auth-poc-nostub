@@ -8,8 +8,8 @@ import org.springframework.stereotype.Repository;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.Optional;
+import java.util.List;
 
 @Repository
 public class DeviceProfileRepository {
@@ -94,34 +94,34 @@ public class DeviceProfileRepository {
   }
 
   public List<DeviceProfile> findByUser(String userId) {
-        String sql = """
-      SELECT id, user_id, tls_fp, ua_family, ua_version, screen_w, screen_h,
-             pixel_ratio, tz_offset, canvas_hash, webgl_hash,
-             first_seen, last_seen, seen_count, last_country
-        FROM device_profile
-       WHERE user_id = ?
-       ORDER BY last_seen DESC
-      """;
+    String sql = """
+        SELECT id, user_id, tls_fp, ua_family, ua_version, screen_w, screen_h,
+               pixel_ratio, tz_offset, canvas_hash, webgl_hash,
+               first_seen, last_seen, seen_count, last_country
+          FROM device_profile
+         WHERE user_id = ?
+         ORDER BY last_seen DESC
+        """;
 
-        return jdbc.query(sql, (rs, rowNum) -> {
-            DeviceProfile p = new DeviceProfile();
-            p.id = rs.getLong("id");
-            p.userId = rs.getString("user_id");
-            p.tlsFp = rs.getString("tls_fp");
-            p.uaFamily = rs.getString("ua_family");
-            p.uaVersion = rs.getString("ua_version");
-            p.screenW = rs.getInt("screen_w");
-            p.screenH = rs.getInt("screen_h");
-            p.pixelRatio = rs.getDouble("pixel_ratio");
-            p.tzOffset = rs.getShort("tz_offset");
-            p.canvasHash = rs.getString("canvas_hash");
-            p.webglHash = rs.getString("webgl_hash");
-            p.firstSeen = rs.getObject("first_seen", OffsetDateTime.class);
-            p.lastSeen = rs.getObject("last_seen", OffsetDateTime.class);
-            p.seenCount = rs.getLong("seen_count");
-            p.lastCountry = rs.getString("last_country");
-            return p;
-        }, userId);
-    }
+    return jdbc.query(sql, (rs, rowNum) -> {
+      DeviceProfile p = new DeviceProfile();
+      p.id = rs.getLong("id");
+      p.userId = rs.getString("user_id");
+      p.tlsFp = rs.getString("tls_fp");
+      p.uaFamily = rs.getString("ua_family");
+      p.uaVersion = rs.getString("ua_version");
+      p.screenW = rs.getInt("screen_w");
+      p.screenH = rs.getInt("screen_h");
+      p.pixelRatio = rs.getDouble("pixel_ratio");
+      p.tzOffset = rs.getShort("tz_offset");
+      p.canvasHash = rs.getString("canvas_hash");
+      p.webglHash = rs.getString("webgl_hash");
+      p.firstSeen = rs.getObject("first_seen", OffsetDateTime.class);
+      p.lastSeen = rs.getObject("last_seen", OffsetDateTime.class);
+      p.seenCount = rs.getLong("seen_count");
+      p.lastCountry = rs.getString("last_country");
+      return p;
+    }, userId);
+  }
 
 }
