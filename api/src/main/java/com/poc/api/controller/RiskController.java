@@ -5,7 +5,6 @@ import com.poc.api.model.Telemetry;
 import com.poc.api.persistence.DecisionLogRepository;
 import com.poc.api.persistence.DecisionLogRow;
 import com.poc.api.service.RiskService;
-import com.poc.api.web.TelemetryValidator;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -19,26 +18,22 @@ public class RiskController {
 
   private final RiskService riskService;
   private final DecisionLogRepository decisionLogRepository;
-  private final TelemetryValidator telemetryValidator;
 
-  public RiskController(RiskService riskService,
-                        DecisionLogRepository decisionLogRepository,
-                        TelemetryValidator telemetryValidator) {
+  public RiskController(RiskService riskService, DecisionLogRepository decisionLogRepository) {
     this.riskService = riskService;
     this.decisionLogRepository = decisionLogRepository;
-    this.telemetryValidator = telemetryValidator;
   }
 
   @PostMapping("/auth/profile-check")
   public ResponseEntity<DecisionResponse> profileCheck(
-      @RequestHeader(name = "X-TLS-FP", required = false) String tlsFp,
-      @RequestHeader(name = "X-Request-Id", required = false) String requestId,
+      @RequestHeader(value = "X-TLS-FP", required = false) String tlsFp,
+      @RequestHeader(value = "X-TLS-Meta", required = false) String tlsMeta,
+      @RequestHeader(value = "X-Request-Id", required = false) String requestId,
       @Valid @RequestBody Telemetry telemetry,
       HttpServletRequest request
   ) {
-    telemetryValidator.validate(telemetry);
     String ip = request.getRemoteAddr();
-    DecisionResponse resp = riskService.score(tlsFp, telemetry, ip, requestId);
+    DecisionResponse resp = riskService.score(tlsFp, tlsMeta, telemetry, ip, requestId);
     return ResponseEntity.ok(resp);
   }
 

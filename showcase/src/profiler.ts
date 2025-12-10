@@ -13,6 +13,30 @@ let lastMouseY = 0;
 let lastKeyTime: number | null = null;
 let keyIntervals: number[] = [];
 
+type ChaosState = {
+  vpn: boolean;
+  highRiskAction: boolean;
+  nightTime: boolean;
+};
+
+let chaosState: ChaosState = {
+  vpn: false,
+  highRiskAction: false,
+  nightTime: false
+};
+
+export function setChaosVpn(enabled: boolean) {
+  chaosState.vpn = enabled;
+}
+
+export function setChaosHighRiskAction(enabled: boolean) {
+  chaosState.highRiskAction = enabled;
+}
+
+export function setChaosNightTime(enabled: boolean) {
+  chaosState.nightTime = enabled;
+}
+
 let canvasHash: string | undefined;
 let webglHash: string | undefined;
 
@@ -100,7 +124,7 @@ async function computeWebglHash() {
   }
 }
 
-export function snapshotTelemetry(userIdHint?: string, profilingOptOut: boolean = false): TelemetryPayload {
+export function snapshotTelemetry(userIdHint?: string): TelemetryPayload {
   const nav = window.navigator as any;
 
   const device: DeviceTelemetry = {
@@ -120,12 +144,13 @@ export function snapshotTelemetry(userIdHint?: string, profilingOptOut: boolean 
     webgl_hash: webglHash
   };
 
+  const now = new Date();
+  const hour = chaosState.nightTime ? 2 : now.getHours();
   const context: Record<string, unknown> = {
     country: "GB", // in a real deployment you'd not hard-code this
-    hour: new Date().getHours(),
-    vpn: false,
-    high_risk_action: false,
-    profiling_opt_out: profilingOptOut
+    hour,
+    vpn: chaosState.vpn,
+    high_risk_action: chaosState.highRiskAction
   };
 
   return {

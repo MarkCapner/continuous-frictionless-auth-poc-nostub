@@ -34,21 +34,21 @@ public class TlsFingerprintFilter implements GlobalFilter, Ordered {
                     digest.update(sessionId.getBytes(StandardCharsets.UTF_8));
                 }
 
-                int certLen = 0;
-                boolean peerPresent = false;
-
+                int certCount = 0;
                 if (peerCerts != null && peerCerts.length > 0 && peerCerts[0] != null) {
-                    peerPresent = true;
-                    byte[] encoded = peerCerts[0].getEncoded();
-                    certLen = encoded.length;
+                    certCount = peerCerts.length;
                     digest.update((byte) 0);
+                    byte[] encoded = peerCerts[0].getEncoded();
                     digest.update(encoded);
                 }
 
                 fp = HexFormat.of().formatHex(digest.digest());
-                meta = "session_present=" + (sessionId != null ? "1" : "0")
-                        + ";peer_present=" + (peerPresent ? "1" : "0")
-                        + ";peer_cert_len=" + certLen;
+
+                StringBuilder metaBuilder = new StringBuilder();
+                metaBuilder.append("tls=true");
+                metaBuilder.append(";sessionId=").append(sessionId != null ? "present" : "none");
+                metaBuilder.append(";peerCerts=").append(certCount);
+                meta = metaBuilder.toString();
             } catch (Exception e) {
                 fp = "tls-error";
                 meta = "tls-error";

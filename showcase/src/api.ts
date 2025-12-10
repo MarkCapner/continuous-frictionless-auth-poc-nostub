@@ -37,9 +37,26 @@ export interface DecisionResponse {
   };
   explanations: string[];
   session_id: string;
+  tls_fp?: string;
+  tls_meta?: string;
 }
 
-const API_BASE = "/api";
+export interface SessionSummary {
+  id: number;
+  sessionId: string;
+  userId: string | null;
+  tlsFp: string;
+  behaviorScore: number;
+  deviceScore: number;
+  contextScore: number;
+  confidence: number;
+  decision: string;
+  createdAt: string;
+}
+
+//const API_BASE = "/api";
+const API_BASE = "https://localhost:8443/api";
+
 
 export async function postProfileCheck(payload: TelemetryPayload): Promise<DecisionResponse> {
   const res = await fetch(`${API_BASE}/auth/profile-check`, {
@@ -53,4 +70,13 @@ export async function postProfileCheck(payload: TelemetryPayload): Promise<Decis
     throw new Error(`API error: ${res.status}`);
   }
   return (await res.json()) as DecisionResponse;
+}
+
+export async function fetchSessions(userHint: string, limit = 20): Promise<SessionSummary[]> {
+  const params = new URLSearchParams({ user_hint: userHint, limit: String(limit) });
+  const res = await fetch(`${API_BASE}/showcase/sessions?${params.toString()}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch sessions: ${res.status}`);
+  }
+  return (await res.json()) as SessionSummary[];
 }

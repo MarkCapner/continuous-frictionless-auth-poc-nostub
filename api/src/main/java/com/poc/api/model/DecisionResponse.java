@@ -8,5 +8,7 @@ public record DecisionResponse(
     double confidence,
     Map<String, Double> breakdown,
     List<String> explanations,
-    String session_id
+    String session_id,
+    String tls_fp,
+    String tls_meta
 ) {}

@@ -78,8 +78,13 @@ public class DeviceProfileRepository {
         ps.setString(14, p.lastCountry);
         return ps;
       }, kh);
-      Number key = kh.getKey();
-      p.id = key != null ? key.longValue() : null;
+      java.util.Map<String,Object> keys = kh.getKeys();
+      if (keys != null) {
+        Object idVal = keys.get("id");
+        if (idVal instanceof Number n) {
+          p.id = n.longValue();
+        }
+      }
       p.firstSeen = now;
       p.lastSeen = now;
       p.seenCount = 1L;

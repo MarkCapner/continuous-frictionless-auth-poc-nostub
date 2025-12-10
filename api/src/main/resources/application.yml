@@ -15,19 +15,8 @@ spring:
 server:
   port: 8080
 
-retention:
-  enabled: true
-  days: 30
-
 management:
-  metrics:
-    export:
-      prometheus:
-        enabled: true
-  endpoint:
-    prometheus:
-      enabled: true
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus
+        include: health,info,metrics
