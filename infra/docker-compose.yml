@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: cfa-postgres
+    environment:
+      POSTGRES_DB: risk
+      POSTGRES_USER: risk
+      POSTGRES_PASSWORD: risk
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U risk"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile-api
+    container_name: cfa-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/risk
+      SPRING_DATASOURCE_USERNAME: risk
+      SPRING_DATASOURCE_PASSWORD: risk
+      #SPRING_FLYWAY_ENABLED: "false"
+    ports:
+      - "8080:8080"
+
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile-gateway
+    container_name: cfa-gateway
+    depends_on:
+      - api
+    environment:
+      SPRING_CLOUD_COMPATIBILITY_VERIFIER_ENABLED: "false"
+    ports:
+      - "8443:8443"

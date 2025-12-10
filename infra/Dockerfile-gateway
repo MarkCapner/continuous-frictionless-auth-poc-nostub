@@ -1,0 +1,38 @@
+# syntax=docker/dockerfile:1.4
+
+############################
+# Build stage
+############################
+FROM maven:3.9-eclipse-temurin-21 AS build
+WORKDIR /workspace
+
+# Copy root pom so Maven understands the multi-module build
+COPY pom.xml .
+
+# Copy gateway module pom
+COPY gateway/pom.xml gateway/pom.xml
+
+# If gateway depends on other modules, you can pre-copy their poms here too
+# (optional but helps with Maven dependency resolution caching)
+# COPY api/pom.xml api/pom.xml
+
+# Copy the full source tree
+COPY . .
+
+# Build only the gateway module and its dependencies
+RUN mvn -pl gateway -am package -DskipTests
+
+############################
+# Runtime stage
+############################
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+
+# Copy the built JAR from the build stage
+# Adjust the jar name/pattern if your artifactId is different
+# was: COPY --from=build /workspace/gateway/target/*.jar app.jar
+COPY --from=build /workspace/gateway/target/*-SNAPSHOT.jar /app/app.jar
+
+
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]
