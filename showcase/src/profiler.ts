@@ -100,7 +100,7 @@ async function computeWebglHash() {
   }
 }
 
-export function snapshotTelemetry(userIdHint?: string): TelemetryPayload {
+export function snapshotTelemetry(userIdHint?: string, profilingOptOut: boolean = false): TelemetryPayload {
   const nav = window.navigator as any;
 
   const device: DeviceTelemetry = {
@@ -124,7 +124,8 @@ export function snapshotTelemetry(userIdHint?: string): TelemetryPayload {
     country: "GB", // in a real deployment you'd not hard-code this
     hour: new Date().getHours(),
     vpn: false,
-    high_risk_action: false
+    high_risk_action: false,
+    profiling_opt_out: profilingOptOut
   };
 
   return {

@@ -43,47 +43,73 @@ public class RiskService {
   }
 
   public DecisionResponse score(String tlsFp, Telemetry telemetry, String ip, String reqId) {
-    String userId = telemetry.user_id_hint() != null ? telemetry.user_id_hint() : "anonymous";
+    String userId = telemetry.user_id_hint() != null && !telemetry.user_id_hint().isBlank()
+        ? telemetry.user_id_hint()
+        : "anonymous";
     String sessionId = (reqId != null && !reqId.isBlank()) ? reqId : UUID.randomUUID().toString();
 
     String country = null;
     boolean vpn = false;
     boolean highRiskAction = false;
+    boolean profilingOptOut = false;
     if (telemetry.context() != null) {
       Object c = telemetry.context().get("country");
-      if (c instanceof String s) country = s;
+      if (c instanceof String s) {
+        country = s;
+      }
       Object v = telemetry.context().get("vpn");
-      if (v instanceof Boolean b) vpn = b;
+      if (v instanceof Boolean b) {
+        vpn = b;
+      }
       Object h = telemetry.context().get("high_risk_action");
-      if (h instanceof Boolean b) highRiskAction = b;
+      if (h instanceof Boolean b) {
+        highRiskAction = b;
+      }
+      Object o = telemetry.context().get("profiling_opt_out");
+      if (o instanceof Boolean b) {
+        profilingOptOut = b;
+      }
     }
 
-    // Upsert device profile
-    DeviceProfile profile = deviceProfileService.upsert(userId, tlsFp, country, telemetry.device());
+    DeviceProfile profile = null;
+    if (!profilingOptOut) {
+      profile = deviceProfileService.upsert(userId, tlsFp, country, telemetry.device());
+    }
 
-    // Behavior similarity + stats update
     BehaviorStatsService.BehaviorSimilarityResult behaviorRes =
-        behaviorStatsService.updateAndComputeSimilarity(userId, telemetry.behavior());
+        behaviorStatsService.updateAndComputeSimilarity(
+            profilingOptOut ? null : userId,
+            telemetry.behavior()
+        );
 
-    // Build feature vector
-    FeatureBuilder.Features features = featureBuilder.build(profile, behaviorRes.score(), tlsFp, telemetry);
+    FeatureBuilder.Features features =
+        featureBuilder.build(profile, behaviorRes.score(), tlsFp, telemetry);
 
-    // ML prediction via Tribuo
-    double pLegit = modelProvider.predict(features.deviceScore(), features.behaviorScore(),
-        features.tlsScore(), features.contextScore());
+    double pLegit = modelProvider.predict(
+        features.deviceScore(),
+        features.behaviorScore(),
+        features.tlsScore(),
+        features.contextScore()
+    );
 
-    // Rules
     RulesEngine.FeaturesWithContext fctx = new RulesEngine.FeaturesWithContext(
         profile,
         country,
         vpn,
-        profile.seenCount <= 1,
-        profile.seenCount <= 1, // new TLS FP approximated by seenCount==1
+        profile == null || profile.seenCount <= 1,
+        profile == null || profile.seenCount <= 1,
         highRiskAction,
-        profile.lastSeen
+        profile != null ? profile.lastSeen : null
     );
-    RulesEngine.Decision decisionEnum = rulesEngine.apply(fctx, pLegit);
-    String decision = decisionEnum.name();
+
+    RulesEngine.Decision rulesDecision = rulesEngine.apply(fctx, pLegit);
+    String decision;
+    switch (rulesDecision) {
+      case ALLOW -> decision = "AUTO_LOGIN";
+      case CHALLENGE -> decision = "STEP_UP";
+      case DENY -> decision = "DENY";
+      default -> decision = "DENY";
+    }
 
     Map<String, Double> breakdown = Map.of(
         "device_score", features.deviceScore(),
@@ -92,27 +118,32 @@ public class RiskService {
         "context_score", features.contextScore()
     );
 
-    // Persist session features
-    try {
-      String deviceJson = objectMapper.writeValueAsString(telemetry.device());
-      String behaviorJson = objectMapper.writeValueAsString(telemetry.behavior());
-      String contextJson = objectMapper.writeValueAsString(telemetry.context());
-      String featureVectorJson = objectMapper.writeValueAsString(breakdown);
-      sessionFeatureRepository.insert(userId, sessionId, tlsFp != null ? tlsFp : "none",
-          deviceJson, behaviorJson, contextJson, featureVectorJson, decision, pLegit, null);
-    } catch (JsonProcessingException e) {
-      // In PoC we don't fail the request on logging errors.
+    if (!profilingOptOut) {
+      try {
+        String deviceJson = objectMapper.writeValueAsString(telemetry.device());
+        String behaviorJson = objectMapper.writeValueAsString(telemetry.behavior());
+        String contextJson = objectMapper.writeValueAsString(telemetry.context());
+        String featureVectorJson = objectMapper.writeValueAsString(breakdown);
+        sessionFeatureRepository.insert(userId, sessionId, tlsFp != null ? tlsFp : "none",
+            deviceJson, behaviorJson, contextJson, featureVectorJson, decision, pLegit, null);
+      } catch (JsonProcessingException e) {
+        // In PoC we don't fail the request on logging errors.
+      }
+
+      // Persist decision log
+      decisionLogRepository.insert(sessionId, userId, tlsFp != null ? tlsFp : "none",
+          features.behaviorScore(), features.deviceScore(), features.contextScore(), pLegit, decision);
     }
 
-    // Persist decision log
-    decisionLogRepository.insert(sessionId, userId, tlsFp != null ? tlsFp : "none",
-        features.behaviorScore(), features.deviceScore(), features.contextScore(), pLegit, decision);
+    var explanations = profilingOptOut
+        ? List.of("ML + rules engine decision", "profiling opt-out: no data stored")
+        : List.of("ML + rules engine decision");
 
     return new DecisionResponse(
         decision,
         pLegit,
         breakdown,
-        List.of("ML + rules engine decision"),
+        explanations,
         sessionId
     );
   }

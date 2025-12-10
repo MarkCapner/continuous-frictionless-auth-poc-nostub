@@ -8,6 +8,7 @@ function App() {
   const [decision, setDecision] = useState<DecisionResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [optOut, setOptOut] = useState(false);
 
   useEffect(() => {
     startProfiler();
@@ -17,7 +18,7 @@ function App() {
     setError(null);
     setLoading(true);
     try {
-      const payload = snapshotTelemetry("demo-user");
+      const payload = snapshotTelemetry("demo-user", optOut);
       setTelemetry(payload);
       const resp = await postProfileCheck(payload);
       setDecision(resp);
@@ -35,6 +36,15 @@ function App() {
         This page captures device and behavior telemetry <strong>in memory only</strong> (no cookies or localStorage)
         and sends it to the Risk API for ML + rules-based scoring.
       </p>
+
+      <label style={{ display: "block", margin: "0.75rem 0" }}>
+        <input
+          type="checkbox"
+          checked={optOut}
+          onChange={(e) => setOptOut(e.target.checked)}
+        />{" "}
+        Opt out of profiling (no data stored)
+      </label>
 
       <button onClick={runProfileCheck} disabled={loading}>
         {loading ? "Running..." : "Run profile check"}
