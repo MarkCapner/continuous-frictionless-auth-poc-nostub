@@ -3,6 +3,8 @@ package com.poc.api.controller;
 import com.poc.api.model.DecisionResponse;
 import com.poc.api.model.Telemetry;
 import com.poc.api.persistence.DecisionLogRepository;
+import com.poc.api.persistence.DeviceProfileRepository;
+import com.poc.api.persistence.TlsFingerprintStatsRow;
 import com.poc.api.persistence.DecisionLogRow;
 import com.poc.api.persistence.UserSummaryRow;
 import com.poc.api.service.RiskService;
@@ -19,10 +21,12 @@ public class RiskController {
 
   private final RiskService riskService;
   private final DecisionLogRepository decisionLogRepository;
+  private final DeviceProfileRepository deviceProfileRepository;
 
-  public RiskController(RiskService riskService, DecisionLogRepository decisionLogRepository) {
+  public RiskController(RiskService riskService, DecisionLogRepository decisionLogRepository, DeviceProfileRepository deviceProfileRepository) {
     this.riskService = riskService;
     this.decisionLogRepository = decisionLogRepository;
+    this.deviceProfileRepository = deviceProfileRepository;
   }
 
   @PostMapping("/auth/profile-check")
@@ -38,6 +42,16 @@ public class RiskController {
     return ResponseEntity.ok(resp);
   }
 
+
+
+  @GetMapping("/showcase/tls-fp")
+  public ResponseEntity<TlsFingerprintStatsRow> tlsFingerprintStats(
+      @RequestParam("fp") String tlsFp
+  ) {
+    return deviceProfileRepository.findTlsStats(tlsFp)
+        .map(ResponseEntity::ok)
+        .orElseGet(() -> ResponseEntity.notFound().build());
+  }
 
   @GetMapping("/showcase/users")
   public ResponseEntity<java.util.List<UserSummaryRow>> users(

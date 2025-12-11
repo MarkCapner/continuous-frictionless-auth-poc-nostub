@@ -4,6 +4,7 @@ import type { TelemetryPayload, DecisionResponse } from "./api";
 import { postProfileCheck } from "./api";
 import { DeviceCard } from "./components/DeviceCard";
 import { TlsPanel } from "./components/TlsPanel";
+import { TlsFingerprintInspector } from "./components/TlsFingerprintInspector";
 import { BehaviorPanel } from "./components/BehaviorPanel";
 import { SessionTimeline } from "./components/SessionTimeline";
 import { UsersOverview } from "./components/UsersOverview";
@@ -71,7 +72,10 @@ function App() {
 
       <section style={gridTwoCols}>
         <DeviceCard device={telemetry ? telemetry.device : null} />
-        <TlsPanel decision={decision} />
+        <div style={{ display: "grid", gridTemplateRows: "min-content min-content", gap: "0.75rem" }}>
+          <TlsPanel decision={decision} />
+          <TlsFingerprintInspector tlsFp={decision?.tls_fp} />
+        </div>
       </section>
 
       <section style={gridTwoCols}>

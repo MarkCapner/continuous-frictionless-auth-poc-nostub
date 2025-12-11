@@ -98,3 +98,26 @@ export async function fetchUserSummaries(limit = 20): Promise<UserSummary[]> {
   }
   return (await res.json()) as UserSummary[];
 }
+
+export interface TlsFingerprintStats {
+  tlsFp: string;
+  profiles: number;
+  users: number;
+  firstSeen: string;
+  lastSeen: string;
+}
+
+export async function fetchTlsFingerprintStats(fp: string): Promise<TlsFingerprintStats | null> {
+  if (!fp || fp === "none") {
+    return null;
+  }
+  const params = new URLSearchParams({ fp });
+  const res = await fetch(`${API_BASE}/showcase/tls-fp?${params.toString()}`);
+  if (res.status === 404) {
+    return null;
+  }
+  if (!res.ok) {
+    throw new Error(`Failed to fetch TLS stats: ${res.status}`);
+  }
+  return (await res.json()) as TlsFingerprintStats;
+}

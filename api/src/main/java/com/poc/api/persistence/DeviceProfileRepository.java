@@ -124,4 +124,31 @@ public class DeviceProfileRepository {
     }, userId);
   }
 
+
+  public Optional<TlsFingerprintStatsRow> findTlsStats(String tlsFp) {
+    String sql = """
+        SELECT
+          tls_fp,
+          COUNT(*) AS profiles,
+          COUNT(DISTINCT user_id) AS users,
+          MIN(first_seen) AS first_seen,
+          MAX(last_seen) AS last_seen
+        FROM device_profile
+        WHERE tls_fp = ?
+        GROUP BY tls_fp
+        """;
+
+    var list = jdbc.query(sql, (rs, rowNum) -> {
+      TlsFingerprintStatsRow row = new TlsFingerprintStatsRow();
+      row.tlsFp = rs.getString("tls_fp");
+      row.profiles = rs.getLong("profiles");
+      row.users = rs.getLong("users");
+      row.firstSeen = rs.getObject("first_seen", OffsetDateTime.class);
+      row.lastSeen = rs.getObject("last_seen", OffsetDateTime.class);
+      return row;
+    }, tlsFp);
+
+    return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
+  }
+
 }
