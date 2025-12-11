@@ -43,7 +43,7 @@ public class DecisionLogRepository {
     }, userId, limit);
   }
 
-  public List<UserSummaryRow> findUserSummaries(int limit) {
+  public java.util.List<UserSummaryRow> findUserSummaries(int limit) {
     String sql = """
         SELECT
           COALESCE(user_id, 'anonymous') AS user_id,

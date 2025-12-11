@@ -4,6 +4,7 @@ import com.poc.api.model.DecisionResponse;
 import com.poc.api.model.Telemetry;
 import com.poc.api.persistence.DecisionLogRepository;
 import com.poc.api.persistence.DecisionLogRow;
+import com.poc.api.persistence.UserSummaryRow;
 import com.poc.api.service.RiskService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -11,7 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import com.poc.api.persistence.UserSummaryRow;
 
 @RestController
 @RequestMapping("/api")
@@ -38,20 +38,22 @@ public class RiskController {
     return ResponseEntity.ok(resp);
   }
 
+
+  @GetMapping("/showcase/users")
+  public ResponseEntity<java.util.List<UserSummaryRow>> users(
+      @RequestParam(name = "limit", defaultValue = "20") int limit
+  ) {
+    var rows = decisionLogRepository.findUserSummaries(limit);
+    return ResponseEntity.ok(rows);
+  }
+
+
   @GetMapping("/showcase/sessions")
   public ResponseEntity<List<DecisionLogRow>> sessions(
       @RequestParam("user_hint") String userHint,
       @RequestParam(name = "limit", defaultValue = "20") int limit
   ) {
     var rows = decisionLogRepository.findRecentByUser(userHint, limit);
-    return ResponseEntity.ok(rows);
-  }
-
-  @GetMapping("/showcase/users")
-  public ResponseEntity<List<UserSummaryRow>> users(
-      @RequestParam(name = "limit", defaultValue = "20") int limit
-  ) {
-    var rows = decisionLogRepository.findUserSummaries(limit);
     return ResponseEntity.ok(rows);
   }
 }
