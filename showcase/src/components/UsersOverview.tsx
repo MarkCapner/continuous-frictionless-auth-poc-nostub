@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import type { UserSummary } from "../api";
 import { fetchUserSummaries } from "../api";
 
@@ -88,6 +88,3 @@ const tableStyle: React.CSSProperties = {
   borderCollapse: "collapse",
   fontSize: "0.85rem"
 };
-
-(Object.keys(tableStyle) as (keyof typeof tableStyle)[]).forEach((k) => {});
-

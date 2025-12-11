@@ -93,7 +93,7 @@ public class DeviceProfileRepository {
     }
   }
 
-  public List<DeviceProfile> findByUser(String userId) {
+  public java.util.List<DeviceProfile> findByUser(String userId) {
     String sql = """
         SELECT id, user_id, tls_fp, ua_family, ua_version, screen_w, screen_h,
                pixel_ratio, tz_offset, canvas_hash, webgl_hash,

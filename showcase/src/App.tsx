@@ -46,7 +46,7 @@ function App() {
         </p>
       </header>
 
-            <div style={userRowStyle}>
+      <div style={userRowStyle}>
         <label style={{ fontWeight: 500 }}>
           Demo user handle:
           <input
@@ -57,11 +57,10 @@ function App() {
             style={inputStyle}
           />
         </label>
-        <span style={{ fontSize: "0.85rem", color: "#4b5563" }}>
-          This handle is sent as <code>user_id_hint</code> and used to group sessions and devices.
+        <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>
+          This value is sent as <code>user_id_hint</code> so you can compare devices per handle.
         </span>
       </div>
-
 
       <div style={{ marginBottom: "1rem" }}>
         <button onClick={runProfileCheck} disabled={loading} style={buttonStyle}>

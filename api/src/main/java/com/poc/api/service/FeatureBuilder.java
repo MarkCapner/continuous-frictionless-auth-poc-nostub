@@ -17,7 +17,7 @@ public class FeatureBuilder {
   public Features build(DeviceProfile deviceProfile, double behaviorSimilarity,
                         String tlsFp, Telemetry telemetry) {
 
-    // Device similarity based on deltas to stored profile
+    // Device similarity based on deltas to stored profile + fingerprint hashes
     Telemetry.Device d = telemetry.device();
     double deviceSim = 0.5;
 
@@ -25,14 +25,25 @@ public class FeatureBuilder {
       double screenWDelta = Math.abs(d.screen().w() - deviceProfile.screenW);
       double screenHDelta = Math.abs(d.screen().h() - deviceProfile.screenH);
       double pixelRatioDelta = Math.abs(d.screen().pixel_ratio() - deviceProfile.pixelRatio);
-      double tzDelta = Math.abs((double) d.tz_offset() - deviceProfile.tzOffset);
+      double tzDeltaMinutes = Math.abs((double) d.tz_offset() - deviceProfile.tzOffset);
 
       double wSim = Math.exp(-screenWDelta / 200.0);
       double hSim = Math.exp(-screenHDelta / 200.0);
       double prSim = Math.exp(-pixelRatioDelta / 0.5);
-      double tzSim = Math.exp(-tzDelta / 60.0);
+      double tzSim = Math.exp(-tzDeltaMinutes / 60.0); // minutes → hours-ish
 
-      deviceSim = 0.25 * (wSim + hSim + prSim + tzSim);
+      // Canvas & WebGL hashes: strong signals – mismatch is a big drop in similarity
+      double canvasSim = 1.0;
+      if (d.canvas_hash() != null && deviceProfile.canvasHash != null) {
+        canvasSim = d.canvas_hash().equals(deviceProfile.canvasHash) ? 1.0 : 0.0;
+      }
+      double webglSim = 1.0;
+      if (d.webgl_hash() != null && deviceProfile.webglHash != null) {
+        webglSim = d.webgl_hash().equals(deviceProfile.webglHash) ? 1.0 : 0.0;
+      }
+
+      // Aggregate into a single consistency score
+      deviceSim = (wSim + hSim + prSim + tzSim + canvasSim + webglSim) / 6.0;
     }
 
     double deviceScore = deviceSim;
