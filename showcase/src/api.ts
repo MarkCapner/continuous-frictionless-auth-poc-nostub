@@ -237,3 +237,51 @@ export async function fetchAdminUserDetail(userId: string): Promise<AdminUserDet
   }
   return (await res.json()) as AdminUserDetail;
 }
+
+export interface AdminRiskStatsRow {
+  decision: string;
+  total: number;
+  avgConfidence: number;
+  last24h: number;
+  last7d: number;
+}
+
+export interface AdminSessionDailyStatsRow {
+  day: string; // ISO date
+  sessions: number;
+  autoLogin: number;
+  stepUp: number;
+  deny: number;
+  avgConfidence: number;
+}
+
+export interface AdminModelConfusionRow {
+  decision: string;
+  label: string | null;
+  sessions: number;
+}
+
+export async function fetchRiskStats(): Promise<AdminRiskStatsRow[]> {
+  const res = await fetch(`${API_BASE}/admin/analytics/risk`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch risk stats: ${res.status}`);
+  }
+  return (await res.json()) as AdminRiskStatsRow[];
+}
+
+export async function fetchSessionDailyStats(limit = 30): Promise<AdminSessionDailyStatsRow[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const res = await fetch(`${API_BASE}/admin/analytics/sessions/daily?${params.toString()}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch session daily stats: ${res.status}`);
+  }
+  return (await res.json()) as AdminSessionDailyStatsRow[];
+}
+
+export async function fetchModelConfusion(): Promise<AdminModelConfusionRow[]> {
+  const res = await fetch(`${API_BASE}/admin/analytics/model/confusion`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch model confusion: ${res.status}`);
+  }
+  return (await res.json()) as AdminModelConfusionRow[];
+}

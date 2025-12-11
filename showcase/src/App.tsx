@@ -13,14 +13,14 @@ import { AdminTlsView } from "./components/AdminTlsView";
 import { AdminBehaviorView } from "./components/AdminBehaviorView";
 import { AdminMlView } from "./components/AdminMlView";
 import { AdminUsersView } from "./components/AdminUsersView";
-
+import { AdminAnalyticsView } from "./components/AdminAnalyticsView";
 type ViewKey =
   | "showcase"
   | "admin-tls"
   | "admin-behavior"
   | "admin-users"
+  | "admin-analytics"
   | "admin-ml";
-
 function App() {
   const [telemetry, setTelemetry] = useState<TelemetryPayload | null>(null);
   const [decision, setDecision] = useState<DecisionResponse | null>(null);
@@ -58,6 +58,8 @@ function App() {
       ? "Admin / Behaviour baselines"
       : view === "admin-users"
       ? "Admin / Users"
+      : view === "admin-analytics"
+      ? "Admin / Analytics"
       : "Admin / ML Model";
 
   return (
@@ -108,6 +110,13 @@ function App() {
             style={view === "admin-users" ? tabButtonActiveStyle : tabButtonStyle}
           >
             Admin / Users
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("admin-analytics")}
+            style={view === "admin-analytics" ? tabButtonActiveStyle : tabButtonStyle}
+          >
+            Admin / Analytics
           </button>
           <button
             type="button"
@@ -199,6 +208,8 @@ function App() {
         <AdminBehaviorView />
       ) : view === "admin-users" ? (
         <AdminUsersView />
+      ) : view === "admin-analytics" ? (
+        <AdminAnalyticsView />
       ) : (
         <AdminMlView />
       )}
