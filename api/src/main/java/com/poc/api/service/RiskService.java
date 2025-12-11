@@ -15,6 +15,9 @@ import java.util.Map;
 import java.util.LinkedHashMap;
 import java.util.UUID;
 
+import com.poc.api.service.AccountSharingHeuristics;
+import com.poc.api.service.UserReputationService;
+
 @Service
 public class RiskService {
 
@@ -25,6 +28,8 @@ public class RiskService {
   private final ModelProvider modelProvider;
   private final SessionFeatureRepository sessionFeatureRepository;
   private final DecisionLogRepository decisionLogRepository;
+  private final AccountSharingHeuristics accountSharingHeuristics;
+  private final UserReputationService userReputationService;
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   public RiskService(DeviceProfileService deviceProfileService,
@@ -33,7 +38,9 @@ public class RiskService {
                      RulesEngine rulesEngine,
                      ModelProvider modelProvider,
                      SessionFeatureRepository sessionFeatureRepository,
-                     DecisionLogRepository decisionLogRepository) {
+                     DecisionLogRepository decisionLogRepository,
+                     AccountSharingHeuristics accountSharingHeuristics,
+                     UserReputationService userReputationService) {
     this.deviceProfileService = deviceProfileService;
     this.behaviorStatsService = behaviorStatsService;
     this.featureBuilder = featureBuilder;
@@ -41,6 +48,8 @@ public class RiskService {
     this.modelProvider = modelProvider;
     this.sessionFeatureRepository = sessionFeatureRepository;
     this.decisionLogRepository = decisionLogRepository;
+    this.accountSharingHeuristics = accountSharingHeuristics;
+    this.userReputationService = userReputationService;
   }
 
   public DecisionResponse score(String tlsFp, String tlsMeta, Telemetry telemetry, String ip, String reqId) {
@@ -128,6 +137,17 @@ public class RiskService {
     enrichedBreakdown.put("device_seen_count_log", seenCountLog);
     enrichedBreakdown.put("tls_fp_seen_count", (double) profile.seenCount);
 
+    // EPIC 6: user-level intelligence & reputation
+    var sharing = accountSharingHeuristics.evaluate(userId);
+    var reputation = userReputationService.evaluate(userId);
+
+    enrichedBreakdown.put("user_trust_score", reputation.trustScore());
+    enrichedBreakdown.put("user_account_sharing_risk", reputation.accountSharingRisk());
+    enrichedBreakdown.put("user_device_count", (double) reputation.deviceCount());
+    enrichedBreakdown.put("user_tls_fp_count", (double) reputation.tlsFingerprintCount());
+    enrichedBreakdown.put("user_country_count", (double) reputation.countryCount());
+    enrichedBreakdown.put("user_sessions_30d", (double) reputation.sessionsLast30d());
+
     // Persist session features
     try {
       String deviceJson = objectMapper.writeValueAsString(telemetry.device());
@@ -148,7 +168,11 @@ public class RiskService {
         String.format("Rules decision: %s", decision),
         String.format("Model p(legit)=%.3f", pLegit),
         String.format("ML anomaly score=%.3f", anomalyScore),
-        String.format("Behavior similarity score %.2f", features.behaviorScore())
+        String.format("Behavior similarity score %.2f", features.behaviorScore()),
+        String.format("User trust score=%.2f (devices=%d, countries=%d)",
+            reputation.trustScore(), reputation.deviceCount(), reputation.countryCount()),
+        String.format("Account sharing risk=%.2f (TLS fingerprints=%d)",
+            reputation.accountSharingRisk(), reputation.tlsFingerprintCount())
     );
 
     return new DecisionResponse(

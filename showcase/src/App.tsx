@@ -12,6 +12,14 @@ import { ChaosToggles } from "./components/ChaosToggles";
 import { AdminTlsView } from "./components/AdminTlsView";
 import { AdminBehaviorView } from "./components/AdminBehaviorView";
 import { AdminMlView } from "./components/AdminMlView";
+import { AdminUsersView } from "./components/AdminUsersView";
+
+type ViewKey =
+  | "showcase"
+  | "admin-tls"
+  | "admin-behavior"
+  | "admin-users"
+  | "admin-ml";
 
 function App() {
   const [telemetry, setTelemetry] = useState<TelemetryPayload | null>(null);
@@ -19,7 +27,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [demoUser, setDemoUser] = useState<string>("demo-user");
-  const [view, setView] = useState<"showcase" | "admin-tls" | "admin-behavior">("showcase");
+  const [view, setView] = useState<ViewKey>("showcase");
 
   useEffect(() => {
     startProfiler();
@@ -35,13 +43,23 @@ function App() {
       const resp = await postProfileCheck(payload);
       setDecision(resp);
     } catch (e: any) {
-      setError(e.message ?? String(e));
+      setError(e?.message ?? String(e));
     } finally {
       setLoading(false);
     }
   };
 
-  
+  const title =
+    view === "showcase"
+      ? "Continuous Frictionless Auth – Showcase"
+      : view === "admin-tls"
+      ? "Admin / TLS fingerprints"
+      : view === "admin-behavior"
+      ? "Admin / Behaviour baselines"
+      : view === "admin-users"
+      ? "Admin / Users"
+      : "Admin / ML Model";
+
   return (
     <div style={pageStyle}>
       <header
@@ -54,13 +72,7 @@ function App() {
         }}
       >
         <div>
-          <h1 style={{ marginBottom: "0.25rem" }}>
-            {view === "showcase"
-              ? "Continuous Frictionless Auth – Showcase"
-              : view === "admin-tls"
-              ? "Admin / TLS fingerprints"
-              : "Admin / Behaviour baselines"}
-          </h1>
+          <h1 style={{ marginBottom: "0.25rem" }}>{title}</h1>
           {view === "showcase" && (
             <p style={{ maxWidth: 640, margin: 0 }}>
               This page visualises the device profile, TLS fingerprint, lightweight behavioural biometrics and
@@ -89,6 +101,13 @@ function App() {
             style={view === "admin-behavior" ? tabButtonActiveStyle : tabButtonStyle}
           >
             Admin / Behaviour
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("admin-users")}
+            style={view === "admin-users" ? tabButtonActiveStyle : tabButtonStyle}
+          >
+            Admin / Users
           </button>
           <button
             type="button"
@@ -156,9 +175,10 @@ function App() {
                 </p>
                 {typeof decision.breakdown.ml_anomaly_score === "number" && (
                   <p>
-                    Anomaly score:{}
+                    Anomaly score:{" "}
                     <strong>{decision.breakdown.ml_anomaly_score!.toFixed(3)}</strong>
-                    {" "}(0 = normal, 1 = very unusual)
+                    {" "}
+                    (0 = normal, 1 = very unusual)
                   </p>
                 )}
                 <h3>Score breakdown</h3>
@@ -177,6 +197,8 @@ function App() {
         <AdminTlsView />
       ) : view === "admin-behavior" ? (
         <AdminBehaviorView />
+      ) : view === "admin-users" ? (
+        <AdminUsersView />
       ) : (
         <AdminMlView />
       )}
@@ -184,7 +206,7 @@ function App() {
   );
 }
 
-const pageStyle = {
+const pageStyle: React.CSSProperties = {
   fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   padding: "1.5rem",
   background: "#f3f4f6",
@@ -192,70 +214,72 @@ const pageStyle = {
   boxSizing: "border-box"
 };
 
-const mainStyle = {
+const mainStyle: React.CSSProperties = {
   maxWidth: 1100,
   margin: "0 auto"
 };
 
-const demoRowStyle = {
+const demoRowStyle: React.CSSProperties = {
   display: "flex",
-  flexDirection: "column" as const,
+  flexDirection: "column",
   gap: "1.25rem"
 };
 
-const userRowStyle = {
+const userRowStyle: React.CSSProperties = {
   display: "flex",
-  flexDirection: "column" as const,
+  flexDirection: "column",
   gap: "0.25rem",
   marginBottom: "0.75rem"
 };
 
-const gridTwoCols = {
+const gridTwoCols: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "1.4fr 1fr",
-  gap: "1.25rem",
-  alignItems: "flex-start",
-  marginTop: "1.25rem"
+  gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 0.9fr)",
+  gap: "1rem",
+  alignItems: "flex-start"
 };
 
-const inputStyle = {
+const inputStyle: React.CSSProperties = {
   display: "block",
-  marginTop: "0.25rem",
+  marginTop: "0.35rem",
   padding: "0.35rem 0.5rem",
-  borderRadius: 6,
+  borderRadius: 4,
   border: "1px solid #d1d5db",
   fontSize: "0.9rem",
   minWidth: 260
 };
 
-const buttonStyle = {
-  padding: "0.5rem 1rem",
+const buttonStyle: React.CSSProperties = {
+  padding: "0.4rem 0.9rem",
   borderRadius: 999,
   border: "none",
+  cursor: "pointer",
   background: "#4f46e5",
   color: "#fff",
-  cursor: "pointer",
-  fontSize: "0.95rem"
+  fontWeight: 500,
+  fontSize: "0.9rem"
 };
 
-const tabButtonStyle = {
-  padding: "0.35rem 0.75rem",
+const tabButtonStyle: React.CSSProperties = {
+  padding: "0.35rem 0.9rem",
   borderRadius: 999,
-  border: "1px solid #d1d5db",
+  borderWidth: 1,
+  borderStyle: "solid",
+  borderColor: "#e5e7eb",
   background: "#fff",
-  color: "#111827",
-  fontSize: "0.8rem",
-  cursor: "pointer"
+  cursor: "pointer",
+  fontSize: "0.85rem"
 };
 
-const tabButtonActiveStyle = {
+const tabButtonActiveStyle: React.CSSProperties = {
   ...tabButtonStyle,
   borderColor: "#4f46e5",
   background: "#eef2ff",
   color: "#312e81"
 };
 
-const preStyle = {
+
+const preStyle: React.CSSProperties = {
   background: "#111827",
   color: "#e5e7eb",
   padding: "0.75rem",

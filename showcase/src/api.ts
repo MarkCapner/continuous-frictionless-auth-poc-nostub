@@ -188,3 +188,52 @@ export async function retrainModel(limit: number = 500): Promise<ModelInfo> {
   }
   return (await res.json()) as ModelInfo;
 }
+
+export interface AdminUserSummary {
+  userId: string;
+  sessions: number;
+  devices: number;
+  lastSeen: string | null;
+  avgConfidence: number;
+  userTrustScore: number;
+  userAccountSharingRisk: number;
+}
+
+export interface AdminUserReputation {
+  trustScore: number;
+  accountSharingRisk: number;
+  deviceCount: number;
+  tlsFingerprintCount: number;
+  countryCount: number;
+  avgConfidenceRecent: number;
+  sessionsLast30d: number;
+}
+
+export interface AdminUserSharingInfo {
+  suspicious: boolean;
+  tlsFingerprintCount: number;
+  countryCount: number;
+}
+
+export interface AdminUserDetail {
+  userId: string;
+  reputation: AdminUserReputation;
+  sharing: AdminUserSharingInfo;
+}
+
+export async function fetchAdminUsers(limit = 50): Promise<AdminUserSummary[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const res = await fetch(`${API_BASE}/admin/users?${params.toString()}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch admin users: ${res.status}`);
+  }
+  return (await res.json()) as AdminUserSummary[];
+}
+
+export async function fetchAdminUserDetail(userId: string): Promise<AdminUserDetail> {
+  const res = await fetch(`${API_BASE}/admin/users/${encodeURIComponent(userId)}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch user detail: ${res.status}`);
+  }
+  return (await res.json()) as AdminUserDetail;
+}
