@@ -151,4 +151,64 @@ public class DeviceProfileRepository {
     return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
   }
 
+
+  public java.util.List<TlsFingerprintDeviceRow> findDevicesByTlsFp(String tlsFp) {
+    String sql = """
+        SELECT
+          user_id,
+          ua_family,
+          ua_version,
+          screen_w,
+          screen_h,
+          pixel_ratio,
+          last_country,
+          seen_count,
+          first_seen,
+          last_seen
+        FROM device_profile
+        WHERE tls_fp = ?
+        ORDER BY last_seen DESC
+        """;
+
+    return jdbc.query(sql, (rs, rowNum) -> {
+      TlsFingerprintDeviceRow row = new TlsFingerprintDeviceRow();
+      row.userId = rs.getString("user_id");
+      row.uaFamily = rs.getString("ua_family");
+      row.uaVersion = rs.getString("ua_version");
+      row.screenW = rs.getInt("screen_w");
+      row.screenH = rs.getInt("screen_h");
+      row.pixelRatio = rs.getDouble("pixel_ratio");
+      row.lastCountry = rs.getString("last_country");
+      row.seenCount = rs.getLong("seen_count");
+      row.firstSeen = rs.getObject("first_seen", OffsetDateTime.class);
+      row.lastSeen = rs.getObject("last_seen", OffsetDateTime.class);
+      return row;
+    }, tlsFp);
+  }
+
+  public java.util.List<TlsFingerprintStatsRow> findAllTlsStats(int limit) {
+    String sql = """
+        SELECT
+          tls_fp,
+          COUNT(*) AS profiles,
+          COUNT(DISTINCT user_id) AS users,
+          MIN(first_seen) AS first_seen,
+          MAX(last_seen) AS last_seen
+        FROM device_profile
+        GROUP BY tls_fp
+        ORDER BY last_seen DESC
+        LIMIT ?
+        """;
+
+    return jdbc.query(sql, (rs, rowNum) -> {
+      TlsFingerprintStatsRow row = new TlsFingerprintStatsRow();
+      row.tlsFp = rs.getString("tls_fp");
+      row.profiles = rs.getLong("profiles");
+      row.users = rs.getLong("users");
+      row.firstSeen = rs.getObject("first_seen", OffsetDateTime.class);
+      row.lastSeen = rs.getObject("last_seen", OffsetDateTime.class);
+      return row;
+    }, limit);
+  }
+
 }

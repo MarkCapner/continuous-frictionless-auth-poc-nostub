@@ -121,3 +121,15 @@ export async function fetchTlsFingerprintStats(fp: string): Promise<TlsFingerpri
   }
   return (await res.json()) as TlsFingerprintStats;
 }
+
+
+export type TlsFingerprintSummary = TlsFingerprintStats;
+
+export async function fetchAllTlsFingerprintSummaries(limit = 100): Promise<TlsFingerprintSummary[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const res = await fetch(`${API_BASE}/admin/tls-fps?${params.toString()}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch TLS fingerprints: ${res.status}`);
+  }
+  return (await res.json()) as TlsFingerprintSummary[];
+}

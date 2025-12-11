@@ -5,6 +5,7 @@ import com.poc.api.model.Telemetry;
 import com.poc.api.persistence.DecisionLogRepository;
 import com.poc.api.persistence.DeviceProfileRepository;
 import com.poc.api.persistence.TlsFingerprintStatsRow;
+import com.poc.api.persistence.TlsFingerprintDeviceRow;
 import com.poc.api.persistence.DecisionLogRow;
 import com.poc.api.persistence.UserSummaryRow;
 import com.poc.api.service.RiskService;
@@ -51,6 +52,23 @@ public class RiskController {
     return deviceProfileRepository.findTlsStats(tlsFp)
         .map(ResponseEntity::ok)
         .orElseGet(() -> ResponseEntity.notFound().build());
+  }
+
+
+  @GetMapping("/showcase/tls-fp/devices")
+  public ResponseEntity<java.util.List<TlsFingerprintDeviceRow>> tlsFingerprintDevices(
+      @RequestParam("fp") String tlsFp
+  ) {
+    var rows = deviceProfileRepository.findDevicesByTlsFp(tlsFp);
+    return ResponseEntity.ok(rows);
+  }
+
+  @GetMapping("/admin/tls-fps")
+  public ResponseEntity<java.util.List<TlsFingerprintStatsRow>> allTlsFingerprints(
+      @RequestParam(name = "limit", defaultValue = "100") int limit
+  ) {
+    var rows = deviceProfileRepository.findAllTlsStats(limit);
+    return ResponseEntity.ok(rows);
   }
 
   @GetMapping("/showcase/users")
