@@ -11,6 +11,7 @@ import { UsersOverview } from "./components/UsersOverview";
 import { ChaosToggles } from "./components/ChaosToggles";
 import { AdminTlsView } from "./components/AdminTlsView";
 import { AdminBehaviorView } from "./components/AdminBehaviorView";
+import { AdminMlView } from "./components/AdminMlView";
 
 function App() {
   const [telemetry, setTelemetry] = useState<TelemetryPayload | null>(null);
@@ -89,6 +90,13 @@ function App() {
           >
             Admin / Behaviour
           </button>
+          <button
+            type="button"
+            onClick={() => setView("admin-ml")}
+            style={view === "admin-ml" ? tabButtonActiveStyle : tabButtonStyle}
+          >
+            Admin / ML Model
+          </button>
         </div>
       </header>
 
@@ -143,6 +151,16 @@ function App() {
                   Decision: <strong>{decision.decision}</strong>{" "}
                   (confidence: {(decision.confidence * 100).toFixed(1)}%)
                 </p>
+                <p>
+                  Model: <code>{decision.model_version ?? "synthetic / unknown"}</code>
+                </p>
+                {typeof decision.breakdown.ml_anomaly_score === "number" && (
+                  <p>
+                    Anomaly score:{}
+                    <strong>{decision.breakdown.ml_anomaly_score!.toFixed(3)}</strong>
+                    {" "}(0 = normal, 1 = very unusual)
+                  </p>
+                )}
                 <h3>Score breakdown</h3>
                 <pre style={preStyle}>{JSON.stringify(decision.breakdown, null, 2)}</pre>
                 <h3>Explanations</h3>
@@ -151,15 +169,16 @@ function App() {
                     <li key={idx}>{e}</li>
                   ))}
                 </ul>
-                <p>Session ID: {decision.session_id}</p>
               </section>
             )}
           </section>
         </div>
       ) : view === "admin-tls" ? (
         <AdminTlsView />
-      ) : (
+      ) : view === "admin-behavior" ? (
         <AdminBehaviorView />
+      ) : (
+        <AdminMlView />
       )}
     </div>
   );

@@ -38,11 +38,15 @@ export interface DecisionResponse {
     tls_score: number;
     behavior_score: number;
     context_score: number;
+    ml_anomaly_score?: number;
+    // additional dimensions from EPIC 5 are allowed but not explicitly typed here
+    [key: string]: number | undefined;
   };
   explanations: string[];
   session_id: string;
   tls_fp?: string;
   tls_meta?: string;
+  model_version?: string;
 }
 
 export interface SessionSummary {
@@ -156,4 +160,31 @@ export async function fetchBehaviorBaselines(limit: number = 200): Promise<Behav
     throw new Error(`Failed to fetch behavior baselines: ${res.status}`);
   }
   return (await res.json()) as BehaviorBaseline[];
+}
+export interface ModelInfo {
+  ready: boolean;
+  modelVersion: string;
+  registryName: string | null;
+  registryFormat: string | null;
+  registryVersion: string | null;
+  lastTrainedAt: string | null;
+}
+
+export async function fetchModelInfo(): Promise<ModelInfo> {
+  const res = await fetch(`${API_BASE}/admin/model`);
+  if (!res.ok) {
+    throw new Error(`Failed to load model info: ${res.status}`);
+  }
+  return (await res.json()) as ModelInfo;
+}
+
+export async function retrainModel(limit: number = 500): Promise<ModelInfo> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const res = await fetch(`${API_BASE}/admin/model/retrain?${params.toString()}`, {
+    method: "POST"
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to retrain model: ${res.status}`);
+  }
+  return (await res.json()) as ModelInfo;
 }

@@ -69,9 +69,21 @@ public class RiskService {
     // Build feature vector
     FeatureBuilder.Features features = featureBuilder.build(profile, behaviorRes.score(), tlsFp, telemetry);
 
-    // ML prediction via Tribuo
-    double pLegit = modelProvider.predict(features.deviceScore(), features.behaviorScore(),
-        features.tlsScore(), features.contextScore());
+    // ML prediction via Tribuo (probability of being legit)
+    double pLegit = modelProvider.predict(
+        features.deviceScore(),
+        features.behaviorScore(),
+        features.tlsScore(),
+        features.contextScore()
+    );
+
+    // EPIC 5: Isolation-Forest-based anomaly score
+    double anomalyScore = modelProvider.anomalyScore(
+        features.deviceScore(),
+        features.behaviorScore(),
+        features.tlsScore(),
+        features.contextScore()
+    );
 
     // Rules
     RulesEngine.FeaturesWithContext fctx = new RulesEngine.FeaturesWithContext(
@@ -94,9 +106,27 @@ public class RiskService {
     );
 
     Map<String, Double> enrichedBreakdown = new LinkedHashMap<>(breakdown);
-    behaviorRes.zScores().forEach((featureName, z) ->
-        enrichedBreakdown.put("behavior_z_" + featureName, z)
-    );
+
+    // EPIC 5: add anomaly score and selected behavioural z-scores + device/TLS rarity.
+    enrichedBreakdown.put("ml_anomaly_score", anomalyScore);
+
+    behaviorRes.zScores().forEach((featureName, z) -> {
+      enrichedBreakdown.put("behavior_z_" + featureName, z);
+      // For the schema we care about a few canonical ones; others are still persisted
+      // but will simply be ignored by the current FeatureVectorSchema.
+      if ("key_interval_mean".equals(featureName)) {
+        enrichedBreakdown.put("behavior_z_key_interval_mean", z);
+      } else if ("key_interval_std".equals(featureName)) {
+        enrichedBreakdown.put("behavior_z_key_interval_std", z);
+      } else if ("scroll_rate".equals(featureName)) {
+        enrichedBreakdown.put("behavior_z_scroll_rate", z);
+      }
+    });
+
+    // Device / TLS rarity style metrics
+    double seenCountLog = profile.seenCount > 0 ? Math.log10(1.0 + profile.seenCount) : 0.0;
+    enrichedBreakdown.put("device_seen_count_log", seenCountLog);
+    enrichedBreakdown.put("tls_fp_seen_count", (double) profile.seenCount);
 
     // Persist session features
     try {
@@ -115,7 +145,9 @@ public class RiskService {
         features.behaviorScore(), features.deviceScore(), features.contextScore(), pLegit, decision);
 
     var reasons = List.of(
-        "ML + rules engine decision",
+        String.format("Rules decision: %s", decision),
+        String.format("Model p(legit)=%.3f", pLegit),
+        String.format("ML anomaly score=%.3f", anomalyScore),
         String.format("Behavior similarity score %.2f", features.behaviorScore())
     );
 
@@ -126,7 +158,8 @@ public class RiskService {
         reasons,
         sessionId,
         tlsFp != null ? tlsFp : "none",
-        tlsMeta
+        tlsMeta,
+        modelProvider.getModelVersion()
     );
   }
 }
