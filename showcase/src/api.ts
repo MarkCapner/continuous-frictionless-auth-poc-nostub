@@ -17,6 +17,10 @@ export interface BehaviorTelemetry {
   key_presses: number;
   avg_key_interval_ms: number;
   scroll_events: number;
+  key_interval_std_ms: number;
+  scroll_events_per_sec: number;
+  pointer_avg_velocity: number;
+  pointer_max_velocity: number;
 }
 
 export interface TelemetryPayload {
@@ -132,4 +136,24 @@ export async function fetchAllTlsFingerprintSummaries(limit = 100): Promise<TlsF
     throw new Error(`Failed to fetch TLS fingerprints: ${res.status}`);
   }
   return (await res.json()) as TlsFingerprintSummary[];
+}
+
+
+export interface BehaviorBaseline {
+  userId: string;
+  feature: string;
+  mean: number;
+  stdDev: number;
+  variance: number;
+  decay: number;
+  updatedAt: string;
+}
+
+export async function fetchBehaviorBaselines(limit: number = 200): Promise<BehaviorBaseline[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const res = await fetch(`${API_BASE}/admin/behavior/baselines?${params.toString()}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch behavior baselines: ${res.status}`);
+  }
+  return (await res.json()) as BehaviorBaseline[];
 }

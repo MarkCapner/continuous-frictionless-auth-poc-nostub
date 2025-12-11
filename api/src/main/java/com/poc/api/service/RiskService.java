@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.UUID;
 
 @Service
@@ -92,12 +93,17 @@ public class RiskService {
         "context_score", features.contextScore()
     );
 
+    Map<String, Double> enrichedBreakdown = new LinkedHashMap<>(breakdown);
+    behaviorRes.zScores().forEach((featureName, z) ->
+        enrichedBreakdown.put("behavior_z_" + featureName, z)
+    );
+
     // Persist session features
     try {
       String deviceJson = objectMapper.writeValueAsString(telemetry.device());
       String behaviorJson = objectMapper.writeValueAsString(telemetry.behavior());
       String contextJson = objectMapper.writeValueAsString(telemetry.context());
-      String featureVectorJson = objectMapper.writeValueAsString(breakdown);
+      String featureVectorJson = objectMapper.writeValueAsString(enrichedBreakdown);
       sessionFeatureRepository.insert(userId, sessionId, tlsFp != null ? tlsFp : "none",
           deviceJson, behaviorJson, contextJson, featureVectorJson, decision, pLegit, null);
     } catch (JsonProcessingException e) {
@@ -108,11 +114,16 @@ public class RiskService {
     decisionLogRepository.insert(sessionId, userId, tlsFp != null ? tlsFp : "none",
         features.behaviorScore(), features.deviceScore(), features.contextScore(), pLegit, decision);
 
+    var reasons = List.of(
+        "ML + rules engine decision",
+        String.format("Behavior similarity score %.2f", features.behaviorScore())
+    );
+
     return new DecisionResponse(
         decision,
         pLegit,
-        breakdown,
-        List.of("ML + rules engine decision"),
+        enrichedBreakdown,
+        reasons,
         sessionId,
         tlsFp != null ? tlsFp : "none",
         tlsMeta

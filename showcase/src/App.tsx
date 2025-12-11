@@ -10,6 +10,7 @@ import { SessionTimeline } from "./components/SessionTimeline";
 import { UsersOverview } from "./components/UsersOverview";
 import { ChaosToggles } from "./components/ChaosToggles";
 import { AdminTlsView } from "./components/AdminTlsView";
+import { AdminBehaviorView } from "./components/AdminBehaviorView";
 
 function App() {
   const [telemetry, setTelemetry] = useState<TelemetryPayload | null>(null);
@@ -17,7 +18,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [demoUser, setDemoUser] = useState<string>("demo-user");
-  const [view, setView] = useState<"showcase" | "admin-tls">("showcase");
+  const [view, setView] = useState<"showcase" | "admin-tls" | "admin-behavior">("showcase");
 
   useEffect(() => {
     startProfiler();
@@ -55,7 +56,9 @@ function App() {
           <h1 style={{ marginBottom: "0.25rem" }}>
             {view === "showcase"
               ? "Continuous Frictionless Auth – Showcase"
-              : "Admin / TLS fingerprints"}
+              : view === "admin-tls"
+              ? "Admin / TLS fingerprints"
+              : "Admin / Behaviour baselines"}
           </h1>
           {view === "showcase" && (
             <p style={{ maxWidth: 640, margin: 0 }}>
@@ -78,6 +81,13 @@ function App() {
             style={view === "admin-tls" ? tabButtonActiveStyle : tabButtonStyle}
           >
             Admin / TLS
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("admin-behavior")}
+            style={view === "admin-behavior" ? tabButtonActiveStyle : tabButtonStyle}
+          >
+            Admin / Behaviour
           </button>
         </div>
       </header>
@@ -146,8 +156,10 @@ function App() {
             )}
           </section>
         </div>
-      ) : (
+      ) : view === "admin-tls" ? (
         <AdminTlsView />
+      ) : (
+        <AdminBehaviorView />
       )}
     </div>
   );

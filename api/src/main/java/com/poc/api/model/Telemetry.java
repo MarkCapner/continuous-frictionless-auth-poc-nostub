@@ -31,6 +31,10 @@ public record Telemetry(
       Double mouse_distance,
       Integer key_presses,
       Double avg_key_interval_ms,
-      Integer scroll_events
+      Integer scroll_events,
+      Double key_interval_std_ms,
+      Double scroll_events_per_sec,
+      Double pointer_avg_velocity,
+      Double pointer_max_velocity
   ) {}
 }

@@ -5,13 +5,20 @@ let behavior: BehaviorTelemetry = {
   mouse_distance: 0,
   key_presses: 0,
   avg_key_interval_ms: 0,
-  scroll_events: 0
+  scroll_events: 0,
+  key_interval_std_ms: 0,
+  scroll_events_per_sec: 0,
+  pointer_avg_velocity: 0,
+  pointer_max_velocity: 0
 };
 
 let lastMouseX = 0;
 let lastMouseY = 0;
+let lastMouseTime: number | null = null;
 let lastKeyTime: number | null = null;
 let keyIntervals: number[] = [];
+let mouseVelocities: number[] = [];
+let scrollTimestamps: number[] = [];
 
 type ChaosState = {
   vpn: boolean;
@@ -49,14 +56,22 @@ export function startProfiler() {
 }
 
 function onMouseMove(e: MouseEvent) {
+  const now = performance.now();
   behavior.mouse_moves += 1;
-  if (lastMouseX !== 0 || lastMouseY !== 0) {
+  if ((lastMouseX !== 0 || lastMouseY !== 0) && lastMouseTime != null) {
     const dx = e.clientX - lastMouseX;
     const dy = e.clientY - lastMouseY;
-    behavior.mouse_distance += Math.sqrt(dx * dx + dy * dy);
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    behavior.mouse_distance += dist;
+    const dt = now - lastMouseTime;
+    if (dt > 0 && dist > 0) {
+      const v = dist / dt; // px per ms
+      mouseVelocities.push(v);
+    }
   }
   lastMouseX = e.clientX;
   lastMouseY = e.clientY;
+  lastMouseTime = now;
 }
 
 function onKeyDown() {
@@ -64,14 +79,13 @@ function onKeyDown() {
   behavior.key_presses += 1;
   if (lastKeyTime != null) {
     keyIntervals.push(now - lastKeyTime);
-    const sum = keyIntervals.reduce((a, b) => a + b, 0);
-    behavior.avg_key_interval_ms = sum / keyIntervals.length;
   }
   lastKeyTime = now;
 }
 
 function onScroll() {
   behavior.scroll_events += 1;
+  scrollTimestamps.push(performance.now());
 }
 
 async function sha256Hex(str: string): Promise<string> {
@@ -143,6 +157,38 @@ export function snapshotTelemetry(userIdHint?: string): TelemetryPayload {
     canvas_hash: canvasHash,
     webgl_hash: webglHash
   };
+
+
+  // Derive richer behavioural features from captured events
+  if (keyIntervals.length > 0) {
+    const sum = keyIntervals.reduce((a, b) => a + b, 0);
+    const mean = sum / keyIntervals.length;
+    const variance =
+      keyIntervals.reduce((acc, v) => acc + (v - mean) * (v - mean), 0) / keyIntervals.length;
+    behavior.avg_key_interval_ms = mean;
+    behavior.key_interval_std_ms = Math.sqrt(variance);
+  } else {
+    behavior.avg_key_interval_ms = 0;
+    behavior.key_interval_std_ms = 0;
+  }
+
+  if (mouseVelocities.length > 0) {
+    const vSum = mouseVelocities.reduce((a, b) => a + b, 0);
+    behavior.pointer_avg_velocity = vSum / mouseVelocities.length;
+    behavior.pointer_max_velocity = mouseVelocities.reduce((a, b) => (a > b ? a : b), 0);
+  } else {
+    behavior.pointer_avg_velocity = 0;
+    behavior.pointer_max_velocity = 0;
+  }
+
+  if (scrollTimestamps.length >= 2) {
+    const durationMs = scrollTimestamps[scrollTimestamps.length - 1] - scrollTimestamps[0];
+    const durationSec = durationMs / 1000;
+    behavior.scroll_events_per_sec =
+      durationSec > 0 ? behavior.scroll_events / durationSec : behavior.scroll_events;
+  } else {
+    behavior.scroll_events_per_sec = behavior.scroll_events > 0 ? behavior.scroll_events : 0;
+  }
 
   const now = new Date();
   const hour = chaosState.nightTime ? 2 : now.getHours();

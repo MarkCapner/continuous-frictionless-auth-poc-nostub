@@ -28,7 +28,11 @@ export function BehaviorPanel({ behavior }: BehaviorPanelProps) {
             <li>Mouse distance: {behavior.mouse_distance.toFixed(1)} px</li>
             <li>Key presses: {behavior.key_presses}</li>
             <li>Avg key interval: {behavior.avg_key_interval_ms.toFixed(1)} ms</li>
+            <li>Key interval std dev: {behavior.key_interval_std_ms.toFixed(1)} ms</li>
             <li>Scroll events: {behavior.scroll_events}</li>
+            <li>Scroll cadence: {behavior.scroll_events_per_sec.toFixed(2)} events/sec</li>
+            <li>Pointer avg velocity: {behavior.pointer_avg_velocity.toFixed(4)} px/ms</li>
+            <li>Pointer max velocity: {behavior.pointer_max_velocity.toFixed(4)} px/ms</li>
           </ul>
         </>
       )}
