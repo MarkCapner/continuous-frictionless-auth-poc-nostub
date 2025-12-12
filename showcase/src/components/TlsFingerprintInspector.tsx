@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import type { TlsFingerprintStats } from "../api";
-import { fetchTlsFingerprintStats } from "../api";
+import type { TlsFamilyDetails, TlsFingerprintStats } from "../api";
+import { fetchTlsFamilyDetailsByFp, fetchTlsFingerprintStats } from "../api";
 
 interface Props {
   tlsFp?: string | null;
@@ -8,6 +8,7 @@ interface Props {
 
 export function TlsFingerprintInspector({ tlsFp }: Props) {
   const [stats, setStats] = useState<TlsFingerprintStats | null>(null);
+  const [family, setFamily] = useState<TlsFamilyDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,6 +18,7 @@ export function TlsFingerprintInspector({ tlsFp }: Props) {
     const run = async () => {
       if (!tlsFp || tlsFp === "none") {
         setStats(null);
+        setFamily(null);
         return;
       }
       setLoading(true);
@@ -25,6 +27,10 @@ export function TlsFingerprintInspector({ tlsFp }: Props) {
         const data = await fetchTlsFingerprintStats(tlsFp);
         if (!cancelled) {
           setStats(data);
+        }
+        const fam = await fetchTlsFamilyDetailsByFp(tlsFp, 12);
+        if (!cancelled) {
+          setFamily(fam);
         }
       } catch (e: any) {
         if (!cancelled) {
@@ -65,6 +71,40 @@ export function TlsFingerprintInspector({ tlsFp }: Props) {
               <li>First seen: {new Date(stats.firstSeen).toLocaleString()}</li>
               <li>Last seen: {new Date(stats.lastSeen).toLocaleString()}</li>
             </ul>
+          )}
+          {!loading && !error && family && (
+            <div style={{ marginTop: "0.5rem", fontSize: "0.85rem" }}>
+              <h3 style={{ margin: "0.5rem 0 0.25rem", fontSize: "0.95rem" }}>TLS family</h3>
+              <ul style={{ paddingLeft: "1.1rem", margin: 0 }}>
+                <li>
+                  Family ID: <code style={{ fontSize: "0.78rem" }}>{family.familyId}</code>
+                </li>
+                <li>
+                  Variants: {family.variants.length} · Users (by family): {family.users}
+                </li>
+                <li>
+                  Subject CN: <code style={{ fontSize: "0.78rem" }}>{family.subject?.CN ?? ""}</code>
+                </li>
+                <li>
+                  Issuer CN: <code style={{ fontSize: "0.78rem" }}>{family.issuer?.CN ?? ""}</code>
+                </li>
+              </ul>
+              <details style={{ marginTop: "0.35rem" }}>
+                <summary style={{ cursor: "pointer" }}>Show family key & variants</summary>
+                <div style={{ marginTop: "0.35rem" }}>
+                  <div style={{ fontSize: "0.8rem", color: "#4b5563" }}>Family key</div>
+                  <code style={{ display: "block", fontSize: "0.75rem", whiteSpace: "pre-wrap" }}>{family.familyKey}</code>
+                  <div style={{ marginTop: "0.35rem", fontSize: "0.8rem", color: "#4b5563" }}>Recent variants</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.25rem" }}>
+                    {family.variants.map((v) => (
+                      <code key={v} style={{ fontSize: "0.72rem", padding: "0.1rem 0.35rem", border: "1px solid #e5e7eb", borderRadius: 999 }}>
+                        {v}
+                      </code>
+                    ))}
+                  </div>
+                </div>
+              </details>
+            </div>
           )}
           {!loading && !error && !stats && (
             <p style={{ fontSize: "0.85rem" }}>

@@ -15,7 +15,7 @@ public class FeatureBuilder {
   ) {}
 
   public Features build(DeviceProfile deviceProfile, double behaviorSimilarity,
-                        String tlsFp, Telemetry telemetry) {
+                        String tlsFp, Telemetry telemetry, Double tlsScoreOverride) {
 
     // Device similarity based on deltas to stored profile + fingerprint hashes
     Telemetry.Device d = telemetry.device();
@@ -49,7 +49,12 @@ public class FeatureBuilder {
     double deviceScore = deviceSim;
     double behaviorScore = behaviorSimilarity;
 
-    double tlsScore = (tlsFp != null && !tlsFp.isBlank()) ? 0.9 : 0.5;
+    double tlsScore;
+    if (tlsScoreOverride != null) {
+      tlsScore = tlsScoreOverride;
+    } else {
+      tlsScore = (tlsFp != null && !tlsFp.isBlank()) ? 0.9 : 0.5;
+    }
 
     double contextScore = 0.5;
     if (telemetry.context() != null) {

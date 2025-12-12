@@ -30,6 +30,7 @@ public class RiskService {
   private final DecisionLogRepository decisionLogRepository;
   private final AccountSharingHeuristics accountSharingHeuristics;
   private final UserReputationService userReputationService;
+  private final TlsFamilyService tlsFamilyService;
   private final ObjectMapper objectMapper = new ObjectMapper();
 
   public RiskService(DeviceProfileService deviceProfileService,
@@ -40,7 +41,8 @@ public class RiskService {
                      SessionFeatureRepository sessionFeatureRepository,
                      DecisionLogRepository decisionLogRepository,
                      AccountSharingHeuristics accountSharingHeuristics,
-                     UserReputationService userReputationService) {
+                     UserReputationService userReputationService,
+                     TlsFamilyService tlsFamilyService) {
     this.deviceProfileService = deviceProfileService;
     this.behaviorStatsService = behaviorStatsService;
     this.featureBuilder = featureBuilder;
@@ -50,6 +52,7 @@ public class RiskService {
     this.decisionLogRepository = decisionLogRepository;
     this.accountSharingHeuristics = accountSharingHeuristics;
     this.userReputationService = userReputationService;
+    this.tlsFamilyService = tlsFamilyService;
   }
 
   public DecisionResponse score(String tlsFp, String tlsMeta, Telemetry telemetry, String ip, String reqId) {
@@ -68,7 +71,10 @@ public class RiskService {
       if (h instanceof Boolean b) highRiskAction = b;
     }
 
-    // Upsert device profile
+    // EPIC 9: normalise TLS and assign to a family.
+    TlsFamilyService.Observation tlsObs = tlsFamilyService.observe(userId, tlsFp, tlsMeta);
+
+    // Upsert device profile (raw TLS FP is still stored for traceability)
     DeviceProfile profile = deviceProfileService.upsert(userId, tlsFp, country, telemetry.device());
 
     // Behavior similarity + stats update
@@ -76,7 +82,7 @@ public class RiskService {
         behaviorStatsService.updateAndComputeSimilarity(userId, telemetry.behavior());
 
     // Build feature vector
-    FeatureBuilder.Features features = featureBuilder.build(profile, behaviorRes.score(), tlsFp, telemetry);
+    FeatureBuilder.Features features = featureBuilder.build(profile, behaviorRes.score(), tlsFp, telemetry, tlsObs.tlsScore());
 
     // ML prediction via Tribuo (probability of being legit)
     double pLegit = modelProvider.predict(
@@ -137,6 +143,10 @@ public class RiskService {
     enrichedBreakdown.put("device_seen_count_log", seenCountLog);
     enrichedBreakdown.put("tls_fp_seen_count", (double) profile.seenCount);
 
+    // EPIC 9: TLS family clustering signals (numeric so they appear in breakdown charts)
+    enrichedBreakdown.put("tls_family_drift", tlsObs.familyDrift());
+    enrichedBreakdown.put("tls_family_meta_present", tlsObs.metaPresent() ? 1.0 : 0.0);
+
     // EPIC 6: user-level intelligence & reputation
     var sharing = accountSharingHeuristics.evaluate(userId);
     var reputation = userReputationService.evaluate(userId);
@@ -153,7 +163,12 @@ public class RiskService {
       String deviceJson = objectMapper.writeValueAsString(telemetry.device());
       String behaviorJson = objectMapper.writeValueAsString(telemetry.behavior());
       String contextJson = objectMapper.writeValueAsString(telemetry.context());
-      String featureVectorJson = objectMapper.writeValueAsString(enrichedBreakdown);
+      // Persist numeric feature_vector plus a few string fields for explainability.
+      Map<String, Object> fv = new LinkedHashMap<>();
+      fv.putAll(enrichedBreakdown);
+      fv.put("tls_family_id", tlsObs.familyId());
+      fv.put("tls_family_key", tlsObs.familyKey());
+      String featureVectorJson = objectMapper.writeValueAsString(fv);
       sessionFeatureRepository.insert(userId, sessionId, tlsFp != null ? tlsFp : "none",
           deviceJson, behaviorJson, contextJson, featureVectorJson, decision, pLegit, null);
     } catch (JsonProcessingException e) {

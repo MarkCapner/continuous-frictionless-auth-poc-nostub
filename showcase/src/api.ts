@@ -142,6 +142,44 @@ export async function fetchAllTlsFingerprintSummaries(limit = 100): Promise<TlsF
   return (await res.json()) as TlsFingerprintSummary[];
 }
 
+// -------------------------
+// EPIC 9: TLS families
+// -------------------------
+
+export interface TlsFamilySummary {
+  familyId: string;
+  familyKey: string;
+  sampleTlsFp: string | null;
+  createdAt: string;
+  lastSeen: string;
+  seenCount: number;
+  variants: number;
+}
+
+export interface TlsFamilyDetails {
+  familyId: string;
+  familyKey: string;
+  sampleTlsFp: string | null;
+  users: number;
+  seenCount: number;
+  createdAt: string;
+  lastSeen: string;
+  variants: string[];
+  subject: Record<string, string>;
+  issuer: Record<string, string>;
+}
+
+export async function fetchTlsFamilyDetailsByFp(fp: string, variantsLimit: number = 10): Promise<TlsFamilyDetails | null> {
+  if (!fp || fp === "none") return null;
+  const params = new URLSearchParams({ fp, variants_limit: String(variantsLimit) });
+  const res = await fetch(`${API_BASE}/showcase/tls-fp/family?${params.toString()}`);
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    throw new Error(`Failed to fetch TLS family: ${res.status}`);
+  }
+  return (await res.json()) as TlsFamilyDetails;
+}
+
 
 export interface BehaviorBaseline {
   userId: string;
