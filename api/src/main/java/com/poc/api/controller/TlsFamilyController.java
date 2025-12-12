@@ -62,11 +62,40 @@ public class TlsFamilyController {
   }
 
   @GetMapping("/showcase/tls-fp/family")
-  public ResponseEntity<TlsFamilyDetails> showcaseLookupByFp(
+  public ResponseEntity<TlsFamilyShowcaseResponse> showcaseLookupByFp(
       @RequestParam("fp") String rawTlsFp,
       @RequestParam(name = "variants_limit", defaultValue = "10") int variantsLimit
   ) {
-    return lookupByFp(rawTlsFp, variantsLimit);
+    Optional<TlsFamilyRepository.FamilyLookup> found = repo.findFamilyByRawFp(rawTlsFp);
+    if (found.isEmpty()) {
+      return ResponseEntity.ok(TlsFamilyShowcaseResponse.notObserved(rawTlsFp));
+    }
+
+    var f = found.get();
+    long users = repo.countUsersForFamily(f.familyId);
+    List<String> variants = repo.listVariants(f.familyId, variantsLimit);
+
+    Map<String, String> kv = TlsMetaParser.parseKv(f.sampleMeta);
+    var subAttrs = TlsMetaParser.parseDnAttrs(kv.get("sub"));
+    var issAttrs = TlsMetaParser.parseDnAttrs(kv.get("iss"));
+
+    return ResponseEntity.ok(new TlsFamilyShowcaseResponse(
+        rawTlsFp,
+        false,
+        null,
+        f.familyId,
+        f.familyKey,
+        f.sampleTlsFp,
+        users,
+        f.seenCount,
+        f.createdAt,
+        f.lastSeen,
+        variants,
+        subAttrs,
+        issAttrs,
+        null,
+        null
+    ));
   }
 
   public record TlsFamilyDetails(
@@ -81,4 +110,48 @@ public class TlsFamilyController {
       Map<String, String> subject,
       Map<String, String> issuer
   ) {}
+
+  /**
+   * Showcase-safe TLS family lookup response.
+   *
+   * EPIC 9.1.1: The Showcase should never hard-fail when a TLS FP has not yet been clustered.
+   * Instead of returning 404, we return 200 with notObserved=true.
+   */
+  public record TlsFamilyShowcaseResponse(
+      String fp,
+      boolean notObserved,
+      String message,
+      String familyId,
+      String familyKey,
+      String sampleTlsFp,
+      long users,
+      long seenCount,
+      java.time.OffsetDateTime createdAt,
+      java.time.OffsetDateTime lastSeen,
+      List<String> variants,
+      Map<String, String> subject,
+      Map<String, String> issuer,
+      Double confidence,
+      Double stability
+  ) {
+    public static TlsFamilyShowcaseResponse notObserved(String fp) {
+      return new TlsFamilyShowcaseResponse(
+          fp,
+          true,
+          "Family not yet observed",
+          null,
+          null,
+          null,
+          0,
+          0,
+          null,
+          null,
+          List.of(),
+          Map.of(),
+          Map.of(),
+          null,
+          null
+      );
+    }
+  }
 }

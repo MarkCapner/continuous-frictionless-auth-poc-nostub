@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import type { TlsFamilyDetails, TlsFingerprintStats } from "../api";
+import type { TlsFamilyShowcaseResponse, TlsFingerprintStats } from "../api";
 import { fetchTlsFamilyDetailsByFp, fetchTlsFingerprintStats } from "../api";
 
 interface Props {
@@ -8,7 +8,7 @@ interface Props {
 
 export function TlsFingerprintInspector({ tlsFp }: Props) {
   const [stats, setStats] = useState<TlsFingerprintStats | null>(null);
-  const [family, setFamily] = useState<TlsFamilyDetails | null>(null);
+  const [family, setFamily] = useState<TlsFamilyShowcaseResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,7 +72,7 @@ export function TlsFingerprintInspector({ tlsFp }: Props) {
               <li>Last seen: {new Date(stats.lastSeen).toLocaleString()}</li>
             </ul>
           )}
-          {!loading && !error && family && (
+          {!loading && !error && family && !family.notObserved && (
             <div style={{ marginTop: "0.5rem", fontSize: "0.85rem" }}>
               <h3 style={{ margin: "0.5rem 0 0.25rem", fontSize: "0.95rem" }}>TLS family</h3>
               <ul style={{ paddingLeft: "1.1rem", margin: 0 }}>
@@ -80,7 +80,7 @@ export function TlsFingerprintInspector({ tlsFp }: Props) {
                   Family ID: <code style={{ fontSize: "0.78rem" }}>{family.familyId}</code>
                 </li>
                 <li>
-                  Variants: {family.variants.length} · Users (by family): {family.users}
+                  Variants: {family.variants.length} · Users (by family): {family.users ?? 0}
                 </li>
                 <li>
                   Subject CN: <code style={{ fontSize: "0.78rem" }}>{family.subject?.CN ?? ""}</code>
