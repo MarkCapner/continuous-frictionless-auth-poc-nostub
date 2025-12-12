@@ -338,3 +338,24 @@ export async function fetchDeviceDiff(leftId: number, rightId: number): Promise<
   }
   return (await res.json()) as DeviceDiffResponse;
 }
+
+export interface BehaviorHistoryItem {
+  id: number;
+  occurredAt: string;
+  tlsFp: string;
+  decision: string;
+  confidence: number;
+  behaviorJson: string | null;
+  featureVector: string | null;
+  label: string | null;
+}
+
+export async function fetchBehaviorHistory(userHint: string, limit = 50): Promise<BehaviorHistoryItem[]> {
+  const hint = (userHint || "demo-user").trim() || "demo-user";
+  const params = new URLSearchParams({ user_hint: hint, limit: String(limit) });
+  const res = await fetch(`${API_BASE}/showcase/behavior/history?${params.toString()}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch behaviour history: ${res.status}`);
+  }
+  return (await res.json()) as BehaviorHistoryItem[];
+}
