@@ -2,7 +2,12 @@ package com.poc.api.controller;
 
 import com.poc.api.persistence.TlsFamilyRepository;
 import com.poc.api.tls.TlsMetaParser;
+import com.poc.api.tls.TlsNormalizationResult;
+import com.poc.api.tls.TlsNormalizer;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -21,8 +26,20 @@ public class TlsFamilyController {
 
   private final TlsFamilyRepository repo;
 
-  public TlsFamilyController(TlsFamilyRepository repo) {
+  /**
+   * Simple PoC admin guard.
+   *
+   * If set (non-blank), the caller must provide X-Admin-Token with the same value.
+   * This is intentionally lightweight and only used for EPIC 9.1.3 admin mutations.
+   */
+  private final String adminToken;
+
+  public TlsFamilyController(
+      TlsFamilyRepository repo,
+      @Value("${poc.admin.token:dev-admin}") String adminToken
+  ) {
     this.repo = repo;
+    this.adminToken = adminToken;
   }
 
   @GetMapping("/admin/tls-families")
@@ -97,6 +114,69 @@ public class TlsFamilyController {
         null
     ));
   }
+
+
+  /**
+   * EPIC 9.1.3: Admin-only mutation to force normalise & classify a TLS FP into a family.
+   *
+   * This is intentionally idempotent: calling it multiple times yields the same family.
+   *
+   * Note: To avoid polluting families, a valid TLS meta (subject/issuer) should be provided.
+   */
+  @PostMapping("/admin/tls-families/force-classify")
+  public ResponseEntity<TlsFamilyShowcaseResponse> forceClassify(
+      @RequestParam("fp") String rawTlsFp,
+      @RequestParam(name = "tls_meta", required = false) String tlsMeta,
+      @RequestParam(name = "variants_limit", defaultValue = "10") int variantsLimit,
+      @RequestHeader(name = "X-Admin-Token", required = false) String adminTokenHeader
+  ) {
+    requireAdmin(adminTokenHeader);
+
+    TlsNormalizationResult n = TlsNormalizer.normalize(rawTlsFp, tlsMeta);
+    if (!n.metaPresent()) {
+      return ResponseEntity.badRequest().body(new TlsFamilyShowcaseResponse(
+          rawTlsFp,
+          true,
+          "tls_meta is required to force classify (missing subject/issuer)",
+          null,
+          null,
+          null,
+          0,
+          0,
+          null,
+          null,
+          List.of(),
+          Map.of(),
+          Map.of(),
+          null,
+          null
+      ));
+    }
+
+    // Persist family and membership.
+    repo.upsertFamily(n.familyId(), n.familyKey(), n.rawTlsFp(), n.rawMeta());
+    repo.upsertMember(n.rawTlsFp(), n.familyId(), n.rawMeta());
+
+    // Reuse showcase lookup to return a stable DTO.
+    return showcaseLookupByFp(rawTlsFp, variantsLimit);
+  }
+
+
+  private void requireAdmin(String headerToken) {
+    String expected = (adminToken == null) ? "" : adminToken.trim();
+    if (expected.isBlank()) {
+      return; // admin guard disabled
+    }
+    String got = (headerToken == null) ? "" : headerToken.trim();
+    if (!expected.equals(got)) {
+      throw new org.springframework.web.server.ResponseStatusException(
+          org.springframework.http.HttpStatus.FORBIDDEN,
+          "Admin token required"
+      );
+    }
+  }
+
+  // (intentionally no other admin mutations in this controller)
 
   public record TlsFamilyDetails(
       String familyId,

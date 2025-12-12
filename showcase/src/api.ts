@@ -202,6 +202,34 @@ export async function fetchTlsFamilyDetailsByFp(fp: string, variantsLimit: numbe
   return (await res.json()) as TlsFamilyShowcaseResponse;
 }
 
+/**
+ * EPIC 9.1.3: Admin-only force normalise & classify a TLS FP into a family.
+ *
+ * This is idempotent. For safety, tls_meta should include certificate subject/issuer.
+ */
+export async function forceClassifyTlsFamily(
+  fp: string,
+  tlsMeta: string | null,
+  adminToken: string,
+  variantsLimit: number = 12
+): Promise<TlsFamilyShowcaseResponse> {
+  const params = new URLSearchParams({ fp, variants_limit: String(variantsLimit) });
+  if (tlsMeta && tlsMeta.trim().length > 0) {
+    params.set("tls_meta", tlsMeta);
+  }
+  const res = await fetch(`${API_BASE}/admin/tls-families/force-classify?${params.toString()}`, {
+    method: "POST",
+    headers: {
+      "X-Admin-Token": adminToken
+    }
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`Force classify failed: ${res.status}${txt ? ` - ${txt}` : ""}`);
+  }
+  return (await res.json()) as TlsFamilyShowcaseResponse;
+}
+
 
 export interface BehaviorBaseline {
   userId: string;

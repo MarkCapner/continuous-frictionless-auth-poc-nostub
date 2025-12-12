@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import type { TlsFamilyShowcaseResponse, TlsFingerprintStats } from "../api";
-import { fetchTlsFamilyDetailsByFp, fetchTlsFingerprintStats } from "../api";
+import { fetchTlsFamilyDetailsByFp, fetchTlsFingerprintStats, forceClassifyTlsFamily } from "../api";
 
 interface Props {
   tlsFp?: string | null;
@@ -11,6 +11,12 @@ export function TlsFingerprintInspector({ tlsFp }: Props) {
   const [family, setFamily] = useState<TlsFamilyShowcaseResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // EPIC 9.1.3 (admin-only): in-memory admin token + optional tls meta for force classify.
+  const [adminToken, setAdminToken] = useState<string>("");
+  const [tlsMeta, setTlsMeta] = useState<string>("");
+  const [forcing, setForcing] = useState(false);
+  const [forceMsg, setForceMsg] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,6 +54,29 @@ export function TlsFingerprintInspector({ tlsFp }: Props) {
       cancelled = true;
     };
   }, [tlsFp]);
+
+  const doForceClassify = async () => {
+    if (!tlsFp || tlsFp === "none") return;
+    setForceMsg(null);
+    if (!adminToken.trim()) {
+      setForceMsg("Admin token required.");
+      return;
+    }
+    if (!tlsMeta.trim()) {
+      setForceMsg("TLS meta required (subject/issuer). Paste the X-TLS-Meta value.");
+      return;
+    }
+    setForcing(true);
+    try {
+      const updated = await forceClassifyTlsFamily(tlsFp, tlsMeta, adminToken.trim(), 12);
+      setFamily(updated);
+      setForceMsg("Classified. TLS family panel updated.");
+    } catch (e: any) {
+      setForceMsg(e?.message ?? String(e));
+    } finally {
+      setForcing(false);
+    }
+  };
 
   return (
     <div style={cardStyle}>
@@ -123,8 +152,53 @@ export function TlsFingerprintInspector({ tlsFp }: Props) {
                 </div>
                 <ul style={{ margin: "0.5rem 0 0", paddingLeft: "1.1rem", color: "#475569" }}>
                   <li>Generate a few more sessions so the system can observe variants.</li>
-                  <li>If you’re an admin, you can force normalise &amp; classify (next EPIC 9.1 step).</li>
+                  <li>If you’re an admin, you can force normalise &amp; classify this FP into a family.</li>
                 </ul>
+
+                <div style={{ marginTop: "0.75rem" }}>
+                  <details>
+                    <summary style={{ cursor: "pointer", fontWeight: 600 }}>Admin tools</summary>
+                    <div style={{ marginTop: "0.5rem" }}>
+                      <label style={{ display: "block", fontSize: "0.8rem", color: "#475569", marginBottom: 4 }}>
+                        Admin token
+                      </label>
+                      <input
+                        value={adminToken}
+                        onChange={(e) => setAdminToken(e.target.value)}
+                        placeholder="Enter X-Admin-Token"
+                        style={{ width: "100%", padding: "0.4rem 0.5rem", borderRadius: 6, border: "1px solid #e2e8f0" }}
+                      />
+
+                      <label style={{ display: "block", fontSize: "0.8rem", color: "#475569", margin: "0.5rem 0 4px" }}>
+                        TLS meta (subject/issuer) — required
+                      </label>
+                      <textarea
+                        value={tlsMeta}
+                        onChange={(e) => setTlsMeta(e.target.value)}
+                        placeholder="Paste the X-TLS-Meta value here (must include sub= and iss= fields)"
+                        rows={4}
+                        style={{ width: "100%", padding: "0.4rem 0.5rem", borderRadius: 6, border: "1px solid #e2e8f0", fontFamily: "monospace", fontSize: "0.78rem" }}
+                      />
+
+                      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "0.5rem" }}>
+                        <button
+                          disabled={forcing || adminToken.trim().length === 0 || tlsMeta.trim().length === 0}
+                          onClick={doForceClassify}
+                          style={{
+                            padding: "0.45rem 0.6rem",
+                            borderRadius: 8,
+                            border: "1px solid #cbd5e1",
+                            background: forcing ? "#f1f5f9" : "#fff",
+                            cursor: forcing ? "not-allowed" : "pointer"
+                          }}
+                        >
+                          {forcing ? "Classifying…" : "Force normalise & classify"}
+                        </button>
+                        {forceMsg && <span style={{ fontSize: "0.8rem", color: "#475569" }}>{forceMsg}</span>}
+                      </div>
+                    </div>
+                  </details>
+                </div>
               </div>
             </div>
           )}
