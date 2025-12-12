@@ -22,6 +22,17 @@ public class TlsFamilyService {
     repo.upsertMember(n.rawTlsFp(), n.familyId(), n.rawMeta());
     boolean newForUser = repo.upsertUserFamily(userId, n.familyId());
 
+    // EPIC 9.1.5: Recompute derived family stats & scores for UI.
+    repo.getFamilyStats(n.familyId()).ifPresent(stats -> {
+      var scores = TlsFamilyScoring.compute(
+          stats.observationCount,
+          stats.variantCount,
+          stats.lastSeen,
+          java.time.OffsetDateTime.now()
+      );
+      repo.recomputeFamilyStats(n.familyId(), scores.confidence(), scores.stability());
+    });
+
     // Score heuristic:
     // - if meta present and family seen for user: strong
     // - if meta present but new family: weak

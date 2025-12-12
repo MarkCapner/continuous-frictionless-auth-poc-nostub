@@ -75,7 +75,12 @@ public class TlsFamilyController {
         users,
         f.seenCount,
         f.createdAt,
+        f.firstSeen,
         f.lastSeen,
+        f.observationCount,
+        f.variantCount,
+        f.confidence,
+        f.stability,
         variants,
         subAttrs,
         issAttrs
@@ -114,8 +119,8 @@ public class TlsFamilyController {
         variants,
         subAttrs,
         issAttrs,
-        null,
-        null
+        f.confidence,
+        f.stability
     ));
   }
 
@@ -160,6 +165,17 @@ public class TlsFamilyController {
     // Persist family and membership.
     repo.upsertFamily(n.familyId(), n.familyKey(), n.rawTlsFp(), n.rawMeta());
     repo.upsertMember(n.rawTlsFp(), n.familyId(), n.rawMeta());
+
+    // EPIC 9.1.5: Update derived stats & scores immediately so the UI reflects it.
+    repo.getFamilyStats(n.familyId()).ifPresent(stats -> {
+      var scores = com.poc.api.service.TlsFamilyScoring.compute(
+          stats.observationCount,
+          stats.variantCount,
+          stats.lastSeen,
+          java.time.OffsetDateTime.now()
+      );
+      repo.recomputeFamilyStats(n.familyId(), scores.confidence(), scores.stability());
+    });
 
     // Reuse showcase lookup to return a stable DTO.
     return showcaseLookupByFp(rawTlsFp, variantsLimit);
@@ -213,7 +229,12 @@ public class TlsFamilyController {
       long users,
       long seenCount,
       java.time.OffsetDateTime createdAt,
+      java.time.OffsetDateTime firstSeen,
       java.time.OffsetDateTime lastSeen,
+      long observationCount,
+      int variantCount,
+      Double confidence,
+      Double stability,
       List<String> variants,
       Map<String, String> subject,
       Map<String, String> issuer

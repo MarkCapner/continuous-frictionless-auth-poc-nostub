@@ -20,11 +20,17 @@ public class TlsFamilyRepository {
 
   public void upsertFamily(String familyId, String familyKey, String sampleFp, String sampleMeta) {
     String sql = """
-        INSERT INTO tls_family (family_id, family_key, sample_tls_fp, sample_meta, created_at, last_seen, seen_count)
-        VALUES (?, ?, ?, ?, now(), now(), 1)
+        INSERT INTO tls_family (
+          family_id, family_key, sample_tls_fp, sample_meta,
+          created_at, first_seen, last_seen,
+          seen_count, observation_count,
+          variant_count, confidence_score, stability_score
+        )
+        VALUES (?, ?, ?, ?, now(), now(), now(), 1, 1, 1, NULL, NULL)
         ON CONFLICT (family_id) DO UPDATE SET
           last_seen = now(),
           seen_count = tls_family.seen_count + 1,
+          observation_count = COALESCE(tls_family.observation_count, tls_family.seen_count, 0) + 1,
           sample_tls_fp = COALESCE(tls_family.sample_tls_fp, EXCLUDED.sample_tls_fp),
           sample_meta = COALESCE(tls_family.sample_meta, EXCLUDED.sample_meta)
         """;
@@ -65,7 +71,10 @@ public class TlsFamilyRepository {
 
   public Optional<FamilyLookup> findFamilyByRawFp(String rawTlsFp) {
     String sql = """
-        SELECT f.family_id, f.family_key, f.sample_tls_fp, f.sample_meta, f.created_at, f.last_seen, f.seen_count
+        SELECT f.family_id, f.family_key, f.sample_tls_fp, f.sample_meta,
+               f.created_at, f.first_seen, f.last_seen,
+               f.seen_count, f.observation_count, f.variant_count,
+               f.confidence_score, f.stability_score
         FROM tls_family_member m
         JOIN tls_family f ON f.family_id = m.family_id
         WHERE m.raw_tls_fp = ?
@@ -76,8 +85,12 @@ public class TlsFamilyRepository {
 
   public List<TlsFamilySummaryRow> listFamilies(int limit) {
     String sql = """
-        SELECT family_id, family_key, sample_tls_fp, created_at, last_seen, seen_count,
-               (SELECT COUNT(*) FROM tls_family_member m WHERE m.family_id = f.family_id) AS variants
+        SELECT family_id, family_key, sample_tls_fp, created_at, first_seen, last_seen,
+               seen_count,
+               COALESCE(observation_count, seen_count) AS observation_count,
+               COALESCE(variant_count, (SELECT COUNT(*) FROM tls_family_member m WHERE m.family_id = f.family_id)) AS variant_count,
+               confidence_score,
+               stability_score
         FROM tls_family f
         ORDER BY last_seen DESC
         LIMIT ?
@@ -88,11 +101,56 @@ public class TlsFamilyRepository {
       r.familyKey = rs.getString("family_key");
       r.sampleTlsFp = rs.getString("sample_tls_fp");
       r.createdAt = rs.getObject("created_at", OffsetDateTime.class);
+      r.firstSeen = rs.getObject("first_seen", OffsetDateTime.class);
       r.lastSeen = rs.getObject("last_seen", OffsetDateTime.class);
       r.seenCount = rs.getLong("seen_count");
-      r.variants = rs.getLong("variants");
+      r.observationCount = rs.getLong("observation_count");
+      r.variantCount = rs.getLong("variant_count");
+      r.confidence = (Double) rs.getObject("confidence_score");
+      r.stability = (Double) rs.getObject("stability_score");
       return r;
     }, limit);
+  }
+
+  /**
+   * EPIC 9.1.5: Recomputes and persists derived family stats (variant_count + scores).
+   *
+   * This is safe to call frequently and is idempotent.
+   */
+  public void recomputeFamilyStats(String familyId, double confidenceScore, double stabilityScore) {
+    String sql = """
+        UPDATE tls_family f
+        SET
+          first_seen = COALESCE(f.first_seen, f.created_at, now()),
+          observation_count = COALESCE(f.observation_count, f.seen_count, 1),
+          variant_count = (
+            SELECT COUNT(*) FROM tls_family_member m WHERE m.family_id = f.family_id
+          ),
+          confidence_score = ?,
+          stability_score = ?
+        WHERE f.family_id = ?
+        """;
+    jdbc.update(sql, confidenceScore, stabilityScore, familyId);
+  }
+
+  public Optional<FamilyStats> getFamilyStats(String familyId) {
+    String sql = """
+        SELECT family_id, first_seen, last_seen,
+               COALESCE(observation_count, seen_count, 1) AS observation_count,
+               COALESCE(variant_count, (SELECT COUNT(*) FROM tls_family_member m WHERE m.family_id = f.family_id), 1) AS variant_count
+        FROM tls_family f
+        WHERE family_id = ?
+        """;
+    List<FamilyStats> rows = jdbc.query(sql, (rs, rowNum) -> {
+      FamilyStats s = new FamilyStats();
+      s.familyId = rs.getString("family_id");
+      s.firstSeen = rs.getObject("first_seen", OffsetDateTime.class);
+      s.lastSeen = rs.getObject("last_seen", OffsetDateTime.class);
+      s.observationCount = rs.getLong("observation_count");
+      s.variantCount = rs.getInt("variant_count");
+      return s;
+    }, familyId);
+    return rows.stream().findFirst();
   }
 
   public List<String> listVariants(String familyId, int limit) {
@@ -168,8 +226,13 @@ public class TlsFamilyRepository {
     f.sampleTlsFp = rs.getString("sample_tls_fp");
     f.sampleMeta = rs.getString("sample_meta");
     f.createdAt = rs.getObject("created_at", OffsetDateTime.class);
+    f.firstSeen = rs.getObject("first_seen", OffsetDateTime.class);
     f.lastSeen = rs.getObject("last_seen", OffsetDateTime.class);
     f.seenCount = rs.getLong("seen_count");
+    f.observationCount = rs.getLong("observation_count");
+    f.variantCount = rs.getInt("variant_count");
+    f.confidence = (Double) rs.getObject("confidence_score");
+    f.stability = (Double) rs.getObject("stability_score");
     return f;
   }
 
@@ -179,8 +242,13 @@ public class TlsFamilyRepository {
     public String sampleTlsFp;
     public String sampleMeta;
     public OffsetDateTime createdAt;
+    public OffsetDateTime firstSeen;
     public OffsetDateTime lastSeen;
     public long seenCount;
+    public long observationCount;
+    public int variantCount;
+    public Double confidence;
+    public Double stability;
   }
 
   public static class TlsFamilySummaryRow {
@@ -188,8 +256,20 @@ public class TlsFamilyRepository {
     public String familyKey;
     public String sampleTlsFp;
     public OffsetDateTime createdAt;
+    public OffsetDateTime firstSeen;
     public OffsetDateTime lastSeen;
     public long seenCount;
-    public long variants;
+    public long observationCount;
+    public long variantCount;
+    public Double confidence;
+    public Double stability;
+  }
+
+  public static class FamilyStats {
+    public String familyId;
+    public OffsetDateTime firstSeen;
+    public OffsetDateTime lastSeen;
+    public long observationCount;
+    public int variantCount;
   }
 }

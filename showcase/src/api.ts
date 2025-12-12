@@ -230,6 +230,36 @@ export async function forceClassifyTlsFamily(
   return (await res.json()) as TlsFamilyShowcaseResponse;
 }
 
+export interface TlsFamilyBackfillResponse {
+  processed: number;
+  classified: number;
+  batches: number;
+  complete: boolean;
+  lastFp: string | null;
+}
+
+/**
+ * EPIC 9.1.4 / 9.1.5: Admin-triggered backfill of TLS families for historical TLS fingerprints.
+ */
+export async function backfillTlsFamilies(
+  adminToken: string,
+  batchSize: number = 500,
+  maxBatches: number = 20
+): Promise<TlsFamilyBackfillResponse> {
+  const params = new URLSearchParams({ batchSize: String(batchSize), maxBatches: String(maxBatches) });
+  const res = await fetch(`${API_BASE}/admin/tls-families/backfill?${params.toString()}`, {
+    method: "POST",
+    headers: {
+      "X-Admin-Token": adminToken
+    }
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`Backfill failed: ${res.status}${txt ? ` - ${txt}` : ""}`);
+  }
+  return (await res.json()) as TlsFamilyBackfillResponse;
+}
+
 
 export interface BehaviorBaseline {
   userId: string;

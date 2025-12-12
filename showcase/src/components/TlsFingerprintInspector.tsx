@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import type { TlsFamilyShowcaseResponse, TlsFingerprintStats } from "../api";
-import { fetchTlsFamilyDetailsByFp, fetchTlsFingerprintStats, forceClassifyTlsFamily } from "../api";
+import type { TlsFamilyShowcaseResponse, TlsFingerprintStats, TlsFamilyBackfillResponse } from "../api";
+import { backfillTlsFamilies, fetchTlsFamilyDetailsByFp, fetchTlsFingerprintStats, forceClassifyTlsFamily } from "../api";
 
 interface Props {
   tlsFp?: string | null;
@@ -17,6 +17,11 @@ export function TlsFingerprintInspector({ tlsFp }: Props) {
   const [tlsMeta, setTlsMeta] = useState<string>("");
   const [forcing, setForcing] = useState(false);
   const [forceMsg, setForceMsg] = useState<string | null>(null);
+
+  // EPIC 9.1.4/9.1.5: admin-triggered backfill.
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillRes, setBackfillRes] = useState<TlsFamilyBackfillResponse | null>(null);
+  const [backfillMsg, setBackfillMsg] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,6 +83,27 @@ export function TlsFingerprintInspector({ tlsFp }: Props) {
     }
   };
 
+  const doBackfill = async () => {
+    setBackfillMsg(null);
+    setBackfillRes(null);
+    if (!adminToken.trim()) {
+      setBackfillMsg("Admin token required.");
+      return;
+    }
+    setBackfilling(true);
+    try {
+      const res = await backfillTlsFamilies(adminToken.trim(), 500, 20);
+      setBackfillRes(res);
+      setBackfillMsg(
+        `Backfill complete: processed=${res.processed}, classified=${res.classified}, batches=${res.batches}${res.complete ? "" : " (paused)"}`
+      );
+    } catch (e: any) {
+      setBackfillMsg(e?.message ?? String(e));
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
   return (
     <div style={cardStyle}>
       <h2>TLS fingerprint inspector</h2>
@@ -133,6 +159,39 @@ export function TlsFingerprintInspector({ tlsFp }: Props) {
                   </div>
                 </div>
               </details>
+
+              <details style={{ marginTop: "0.75rem" }}>
+                <summary style={{ cursor: "pointer", fontWeight: 600 }}>Admin tools</summary>
+                <div style={{ marginTop: "0.5rem" }}>
+                  <label style={{ display: "block", fontSize: "0.8rem", color: "#475569", marginBottom: 4 }}>
+                    Admin token
+                  </label>
+                  <input
+                    value={adminToken}
+                    onChange={(e) => setAdminToken(e.target.value)}
+                    placeholder="Enter X-Admin-Token"
+                    style={{ width: "100%", padding: "0.4rem 0.5rem", borderRadius: 6, border: "1px solid #e2e8f0" }}
+                  />
+
+                  <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "0.5rem" }}>
+                    <button
+                      disabled={backfilling || adminToken.trim().length === 0}
+                      onClick={doBackfill}
+                      style={{
+                        padding: "0.45rem 0.6rem",
+                        borderRadius: 8,
+                        border: "1px solid #cbd5e1",
+                        background: backfilling ? "#f1f5f9" : "#fff",
+                        cursor: backfilling ? "not-allowed" : "pointer"
+                      }}
+                    >
+                      {backfilling ? "Backfilling…" : "Backfill historical families"}
+                    </button>
+                    {backfillMsg && <span style={{ fontSize: "0.8rem", color: "#475569" }}>{backfillMsg}</span>}
+                  </div>
+                </div>
+              </details>
+
             </div>
           )}
           {!loading && !error && family && family.notObserved && (
@@ -195,6 +254,23 @@ export function TlsFingerprintInspector({ tlsFp }: Props) {
                           {forcing ? "Classifying…" : "Force normalise & classify"}
                         </button>
                         {forceMsg && <span style={{ fontSize: "0.8rem", color: "#475569" }}>{forceMsg}</span>}
+                      </div>
+
+                      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "0.5rem" }}>
+                        <button
+                          disabled={backfilling || adminToken.trim().length === 0}
+                          onClick={doBackfill}
+                          style={{
+                            padding: "0.45rem 0.6rem",
+                            borderRadius: 8,
+                            border: "1px solid #cbd5e1",
+                            background: backfilling ? "#f1f5f9" : "#fff",
+                            cursor: backfilling ? "not-allowed" : "pointer"
+                          }}
+                        >
+                          {backfilling ? "Backfilling…" : "Backfill historical families"}
+                        </button>
+                        {backfillMsg && <span style={{ fontSize: "0.8rem", color: "#475569" }}>{backfillMsg}</span>}
                       </div>
                     </div>
                   </details>

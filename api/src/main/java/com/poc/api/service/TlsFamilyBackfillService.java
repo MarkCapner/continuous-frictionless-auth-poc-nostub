@@ -39,6 +39,8 @@ public class TlsFamilyBackfillService {
     long classified = 0;
     String cursor = "";
 
+    java.util.Set<String> touchedFamilies = new java.util.HashSet<>();
+
     while (batchesRun < maxBatches) {
       List<String> fps = repo.listUnclassifiedObservedTlsFps(cursor, batchSize);
       if (fps.isEmpty()) {
@@ -55,11 +57,21 @@ public class TlsFamilyBackfillService {
         // Persist family and membership (idempotent via upserts + we only process missing members).
         repo.upsertFamily(n.familyId(), n.familyKey(), n.rawTlsFp(), n.rawMeta());
         repo.upsertMember(n.rawTlsFp(), n.familyId(), n.rawMeta());
+        touchedFamilies.add(n.familyId());
         classified++;
       }
 
       batchesRun++;
       log.info("[tls-backfill] batch {} complete: processed={}, lastFp='{}'", batchesRun, processed, cursor);
+    }
+
+    // EPIC 9.1.5: Recompute family stats & scores once per touched family.
+    var now = java.time.OffsetDateTime.now();
+    for (String familyId : touchedFamilies) {
+      repo.getFamilyStats(familyId).ifPresent(stats -> {
+        var scores = TlsFamilyScoring.compute(stats.observationCount, stats.variantCount, stats.lastSeen, now);
+        repo.recomputeFamilyStats(familyId, scores.confidence(), scores.stability());
+      });
     }
 
     boolean complete = batchesRun < maxBatches;
