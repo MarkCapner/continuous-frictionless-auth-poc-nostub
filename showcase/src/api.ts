@@ -359,3 +359,28 @@ export async function fetchBehaviorHistory(userHint: string, limit = 50): Promis
   }
   return (await res.json()) as BehaviorHistoryItem[];
 }
+
+
+export interface RiskTimelineItem {
+  id: number;
+  occurredAt: string;
+  decision: string;
+  confidence: number;
+  behaviorScore: number;
+  deviceScore: number;
+  contextScore: number;
+  explanations: string[];
+}
+
+export async function fetchRiskTimeline(
+  userHint: string,
+  limit = 50
+): Promise<RiskTimelineItem[]> {
+  const hint = (userHint || "demo-user").trim() || "demo-user";
+  const params = new URLSearchParams({ user_hint: hint, limit: String(limit) });
+  const res = await fetch(`${API_BASE}/showcase/risk/timeline?${params.toString()}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch risk timeline: ${res.status}`);
+  }
+  return (await res.json()) as RiskTimelineItem[];
+}
