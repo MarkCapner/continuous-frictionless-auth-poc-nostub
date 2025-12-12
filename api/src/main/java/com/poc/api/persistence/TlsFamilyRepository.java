@@ -114,6 +114,53 @@ public class TlsFamilyRepository {
     );
   }
 
+  /**
+   * EPIC 9.1.4: Lists raw TLS fingerprints observed in historical tables which
+   * are not yet present in {@code tls_family_member}.
+   *
+   * Paging is lexicographic on tls_fp using {@code afterFp} as an exclusive cursor.
+   */
+  public List<String> listUnclassifiedObservedTlsFps(String afterFp, int limit) {
+    String cursor = (afterFp == null) ? "" : afterFp;
+    String sql = """
+        WITH observed AS (
+          SELECT tls_fp FROM session_feature
+          UNION
+          SELECT tls_fp FROM device_profile
+          UNION
+          SELECT tls_fp FROM decision_log
+        )
+        SELECT o.tls_fp
+        FROM observed o
+        WHERE o.tls_fp IS NOT NULL
+          AND o.tls_fp <> ''
+          AND o.tls_fp > ?
+          AND NOT EXISTS (SELECT 1 FROM tls_family_member m WHERE m.raw_tls_fp = o.tls_fp)
+        ORDER BY o.tls_fp
+        LIMIT ?
+        """;
+    return jdbc.query(sql, (rs, rowNum) -> rs.getString("tls_fp"), cursor, limit);
+  }
+
+  /**
+   * EPIC 9.1.4: Fetches the most recent tls_meta string we have observed for a TLS FP.
+   * This is best-effort (may be null), and is used to improve family normalisation.
+   */
+  public String findLatestTlsMetaForFp(String tlsFp) {
+    String sql = """
+        SELECT context_json->>'tls_meta' AS tls_meta
+        FROM session_feature
+        WHERE tls_fp = ?
+          AND context_json ? 'tls_meta'
+          AND (context_json->>'tls_meta') IS NOT NULL
+          AND (context_json->>'tls_meta') <> ''
+        ORDER BY occurred_at DESC
+        LIMIT 1
+        """;
+    List<String> rows = jdbc.query(sql, (rs, rowNum) -> rs.getString("tls_meta"), tlsFp);
+    return rows.isEmpty() ? null : rows.get(0);
+  }
+
   private static FamilyLookup mapFamilyLookup(ResultSet rs) throws SQLException {
     FamilyLookup f = new FamilyLookup();
     f.familyId = rs.getString("family_id");

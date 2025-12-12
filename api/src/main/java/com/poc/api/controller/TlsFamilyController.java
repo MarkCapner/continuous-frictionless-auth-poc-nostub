@@ -1,6 +1,7 @@
 package com.poc.api.controller;
 
 import com.poc.api.persistence.TlsFamilyRepository;
+import com.poc.api.service.TlsFamilyBackfillService;
 import com.poc.api.tls.TlsMetaParser;
 import com.poc.api.tls.TlsNormalizationResult;
 import com.poc.api.tls.TlsNormalizer;
@@ -25,6 +26,7 @@ import java.util.Optional;
 public class TlsFamilyController {
 
   private final TlsFamilyRepository repo;
+  private final TlsFamilyBackfillService backfillService;
 
   /**
    * Simple PoC admin guard.
@@ -36,9 +38,11 @@ public class TlsFamilyController {
 
   public TlsFamilyController(
       TlsFamilyRepository repo,
+      TlsFamilyBackfillService backfillService,
       @Value("${poc.admin.token:dev-admin}") String adminToken
   ) {
     this.repo = repo;
+    this.backfillService = backfillService;
     this.adminToken = adminToken;
   }
 
@@ -162,6 +166,30 @@ public class TlsFamilyController {
   }
 
 
+  /**
+   * EPIC 9.1.4: Admin-triggered backfill of TLS families for historical TLS fingerprints.
+   *
+   * Safe & resumable:
+   *  - Only processes TLS FPs not yet present in tls_family_member.
+   *  - Batches are limited to prevent long-running requests.
+   */
+  @PostMapping("/admin/tls-families/backfill")
+  public ResponseEntity<BackfillResponse> backfillTlsFamilies(
+      @RequestParam(name = "batchSize", defaultValue = "500") int batchSize,
+      @RequestParam(name = "maxBatches", defaultValue = "20") int maxBatches,
+      @RequestHeader(name = "X-Admin-Token", required = false) String adminTokenHeader
+  ) {
+    requireAdmin(adminTokenHeader);
+    var result = backfillService.backfill(batchSize, maxBatches);
+    return ResponseEntity.ok(new BackfillResponse(
+        result.processed(),
+        result.classified(),
+        result.batches(),
+        result.complete(),
+        result.lastFp()
+    ));
+  }
+
   private void requireAdmin(String headerToken) {
     String expected = (adminToken == null) ? "" : adminToken.trim();
     if (expected.isBlank()) {
@@ -234,4 +262,12 @@ public class TlsFamilyController {
       );
     }
   }
+
+  public record BackfillResponse(
+      long processed,
+      long classified,
+      int batches,
+      boolean complete,
+      String lastFp
+  ) {}
 }
