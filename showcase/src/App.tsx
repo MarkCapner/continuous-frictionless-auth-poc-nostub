@@ -14,8 +14,10 @@ import { AdminBehaviorView } from "./components/AdminBehaviorView";
 import { AdminMlView } from "./components/AdminMlView";
 import { AdminUsersView } from "./components/AdminUsersView";
 import { AdminAnalyticsView } from "./components/AdminAnalyticsView";
+import { ShowcaseDashboard } from "./components/ShowcaseDashboard";
 type ViewKey =
   | "showcase"
+  | "showcase-dashboard"
   | "admin-tls"
   | "admin-behavior"
   | "admin-users"
@@ -52,6 +54,8 @@ function App() {
   const title =
     view === "showcase"
       ? "Continuous Frictionless Auth – Showcase"
+      : view === "showcase-dashboard"
+      ? "Continuous Frictionless Auth – Dashboard"
       : view === "admin-tls"
       ? "Admin / TLS fingerprints"
       : view === "admin-behavior"
@@ -89,6 +93,13 @@ function App() {
             style={view === "showcase" ? tabButtonActiveStyle : tabButtonStyle}
           >
             Showcase
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("showcase-dashboard")}
+            style={view === "showcase-dashboard" ? tabButtonActiveStyle : tabButtonStyle}
+          >
+            Dashboard
           </button>
           <button
             type="button"
@@ -202,6 +213,8 @@ function App() {
             )}
           </section>
         </div>
+      ) : view === "showcase-dashboard" ? (
+        <ShowcaseDashboard />
       ) : view === "admin-tls" ? (
         <AdminTlsView />
       ) : view === "admin-behavior" ? (
@@ -216,7 +229,6 @@ function App() {
     </div>
   );
 }
-
 const pageStyle: React.CSSProperties = {
   fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   padding: "1.5rem",
