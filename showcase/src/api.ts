@@ -285,3 +285,56 @@ export async function fetchModelConfusion(): Promise<AdminModelConfusionRow[]> {
   }
   return (await res.json()) as AdminModelConfusionRow[];
 }
+
+export interface DeviceProfileSummary {
+  id: number;
+  userId: string;
+  tlsFp: string;
+  uaFamily: string;
+  uaVersion: string;
+  screenW: number;
+  screenH: number;
+  pixelRatio: number;
+  tzOffset: number;
+  canvasHash: string | null;
+  webglHash: string | null;
+  firstSeen: string | null;
+  lastSeen: string | null;
+  seenCount: number;
+  lastCountry: string | null;
+}
+
+export interface DeviceDiffChange {
+  field: string;
+  kind: string;
+  leftValue: string | null;
+  rightValue: string | null;
+}
+
+export interface DeviceDiffResponse {
+  left: DeviceProfileSummary;
+  right: DeviceProfileSummary;
+  changes: DeviceDiffChange[];
+}
+
+export async function fetchDeviceHistory(userHint: string): Promise<DeviceProfileSummary[]> {
+  const hint = (userHint || "demo-user").trim() || "demo-user";
+  const params = new URLSearchParams({ user_hint: hint });
+  const res = await fetch(`${API_BASE}/showcase/devices/history?${params.toString()}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch device history: ${res.status}`);
+  }
+  return (await res.json()) as DeviceProfileSummary[];
+}
+
+export async function fetchDeviceDiff(leftId: number, rightId: number): Promise<DeviceDiffResponse> {
+  const params = new URLSearchParams({
+    left_id: String(leftId),
+    right_id: String(rightId)
+  });
+  const res = await fetch(`${API_BASE}/showcase/devices/diff?${params.toString()}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch device diff: ${res.status}`);
+  }
+  return (await res.json()) as DeviceDiffResponse;
+}
