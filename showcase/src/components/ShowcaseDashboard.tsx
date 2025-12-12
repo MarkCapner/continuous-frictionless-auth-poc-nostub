@@ -20,6 +20,7 @@ import { TlsFpVisualizer } from "./TlsFpVisualizer";
  */
 export function ShowcaseDashboard() {
   const [userHint, setUserHint] = useState<string>("demo-user");
+  const [tlsFpHint, setTlsFpHint] = useState<string>("");
 
   return (
     <div style={containerStyle}>
@@ -50,7 +51,7 @@ export function ShowcaseDashboard() {
       </section>
 
       <section style={gridTwoCols}>
-        <DeviceHistoryCharts userHint={userHint} />
+        <DeviceHistoryCharts userHint={userHint} onTlsSelect={setTlsFpHint} />
         <DeviceDiffPanel userHint={userHint} />
       </section>
 
@@ -60,7 +61,7 @@ export function ShowcaseDashboard() {
       </section>
 
       <section style={singleRowStyle}>
-        <TlsFpVisualizer userHint={userHint} />
+        <TlsFpVisualizer userHint={userHint} preselectedFp={tlsFpHint} />
       </section>
     </div>
   );

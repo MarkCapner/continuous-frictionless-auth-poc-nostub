@@ -384,3 +384,31 @@ export async function fetchRiskTimeline(
   }
   return (await res.json()) as RiskTimelineItem[];
 }
+
+export interface TlsFpDeviceRow {
+  id: number;
+  userId: string;
+  uaFamily: string;
+  uaVersion: string;
+  lastCountry: string | null;
+  firstSeen: string | null;
+  lastSeen: string | null;
+}
+
+export interface TlsFpOverview {
+  tlsFp: string;
+  profiles: number;
+  users: number;
+  firstSeen: string | null;
+  lastSeen: string | null;
+  devices: TlsFpDeviceRow[];
+}
+
+export async function fetchTlsFpOverview(tlsFp: string): Promise<TlsFpOverview> {
+  const params = new URLSearchParams({ tls_fp: tlsFp });
+  const res = await fetch(`${API_BASE}/showcase/tls-fp/overview?${params.toString()}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch TLS FP overview: ${res.status}`);
+  }
+  return (await res.json()) as TlsFpOverview;
+}
