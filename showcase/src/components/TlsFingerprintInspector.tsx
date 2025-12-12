@@ -106,6 +106,28 @@ export function TlsFingerprintInspector({ tlsFp }: Props) {
               </details>
             </div>
           )}
+          {!loading && !error && family && family.notObserved && (
+            <div style={{ marginTop: "0.5rem", fontSize: "0.85rem" }}>
+              <h3 style={{ margin: "0.5rem 0 0.25rem", fontSize: "0.95rem" }}>TLS family</h3>
+              <div
+                style={{
+                  border: "1px dashed #cbd5e1",
+                  background: "#f8fafc",
+                  borderRadius: 8,
+                  padding: "0.75rem"
+                }}
+              >
+                <div style={{ fontWeight: 600, marginBottom: "0.25rem" }}>Family not yet observed</div>
+                <div style={{ color: "#475569", lineHeight: 1.35 }}>
+                  This TLS fingerprint hasn’t been clustered into a family yet.
+                </div>
+                <ul style={{ margin: "0.5rem 0 0", paddingLeft: "1.1rem", color: "#475569" }}>
+                  <li>Generate a few more sessions so the system can observe variants.</li>
+                  <li>If you’re an admin, you can force normalise &amp; classify (next EPIC 9.1 step).</li>
+                </ul>
+              </div>
+            </div>
+          )}
           {!loading && !error && !stats && (
             <p style={{ fontSize: "0.85rem" }}>
               This TLS fingerprint is not yet in the device_profile table. Run a few checks to populate it.
