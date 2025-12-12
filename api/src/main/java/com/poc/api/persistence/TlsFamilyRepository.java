@@ -209,7 +209,9 @@ public class TlsFamilyRepository {
         SELECT context_json->>'tls_meta' AS tls_meta
         FROM session_feature
         WHERE tls_fp = ?
-          AND context_json ? 'tls_meta'
+          -- NOTE: avoid the Postgres JSONB "?" operator here because JDBC treats "?"
+          -- as a positional parameter placeholder in PreparedStatements.
+          AND jsonb_exists(context_json, 'tls_meta')
           AND (context_json->>'tls_meta') IS NOT NULL
           AND (context_json->>'tls_meta') <> ''
         ORDER BY occurred_at DESC

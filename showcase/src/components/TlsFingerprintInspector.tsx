@@ -130,6 +130,28 @@ export function TlsFingerprintInspector({ tlsFp }: Props) {
           {!loading && !error && family && !family.notObserved && (
             <div style={{ marginTop: "0.5rem", fontSize: "0.85rem" }}>
               <h3 style={{ margin: "0.5rem 0 0.25rem", fontSize: "0.95rem" }}>TLS family</h3>
+
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.35rem" }}>
+                <ScoreBadge
+                  label="Confidence"
+                  value={family.confidence}
+                  title={
+                    family.confidence == null
+                      ? "Not available yet"
+                      : "How confident the system is that this family is a meaningful cluster (0–1)."
+                  }
+                />
+                <ScoreBadge
+                  label="Stability"
+                  value={family.stability}
+                  title={
+                    family.stability == null
+                      ? "Not available yet"
+                      : "How stable this family appears over time (0–1). Higher means less churn."
+                  }
+                />
+              </div>
+
               <ul style={{ paddingLeft: "1.1rem", margin: 0 }}>
                 <li>
                   Family ID: <code style={{ fontSize: "0.78rem" }}>{family.familyId}</code>
@@ -144,6 +166,21 @@ export function TlsFingerprintInspector({ tlsFp }: Props) {
                   Issuer CN: <code style={{ fontSize: "0.78rem" }}>{family.issuer?.CN ?? ""}</code>
                 </li>
               </ul>
+
+              <div style={{ marginTop: "0.5rem", padding: "0.5rem 0.6rem", border: "1px solid #e2e8f0", borderRadius: 8, background: "#fafafa" }}>
+                <div style={{ fontWeight: 600, marginBottom: "0.25rem" }}>Why this score?</div>
+                <ul style={{ margin: 0, paddingLeft: "1.1rem", color: "#475569" }}>
+                  <li>Observations: {family.seenCount ?? 0}</li>
+                  <li>Variants in family: {family.variants.length}</li>
+                  <li>
+                    Recency: {family.lastSeen ? `${formatAgeMs(Date.now() - new Date(family.lastSeen).getTime())} ago` : "unknown"}
+                  </li>
+                </ul>
+                <div style={{ marginTop: "0.25rem", fontSize: "0.78rem", color: "#64748b" }}>
+                  Confidence generally increases with more consistent observations; stability increases when the family changes slowly and remains recently active.
+                </div>
+              </div>
+
               <details style={{ marginTop: "0.35rem" }}>
                 <summary style={{ cursor: "pointer" }}>Show family key & variants</summary>
                 <div style={{ marginTop: "0.35rem" }}>
@@ -298,3 +335,38 @@ const cardStyle: React.CSSProperties = {
   minWidth: 260,
   flex: 1
 };
+
+function ScoreBadge({ label, value, title }: { label: string; value: number | null | undefined; title: string }) {
+  const display = value == null ? "n/a" : `${Math.round(value * 100)}%`;
+  return (
+    <div
+      title={title}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "0.35rem",
+        padding: "0.18rem 0.5rem",
+        borderRadius: 999,
+        border: "1px solid #e2e8f0",
+        background: "#fff",
+        fontSize: "0.78rem",
+        color: "#334155"
+      }}
+    >
+      <span style={{ fontWeight: 600 }}>{label}</span>
+      <span style={{ fontFamily: "monospace" }}>{display}</span>
+    </div>
+  );
+}
+
+function formatAgeMs(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) return "unknown";
+  const sec = Math.floor(ms / 1000);
+  if (sec < 60) return `${sec}s`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h`;
+  const d = Math.floor(hr / 24);
+  return `${d}d`;
+}
