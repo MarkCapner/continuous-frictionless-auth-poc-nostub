@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { API_BASE } from "../api";
 
 type ModelInfo = {
   registryId: number | null;
@@ -50,12 +51,12 @@ export function AdminMlView() {
 
   async function refresh() {
     setErr(null);
-    setInfo(await getJson<ModelInfo>("http://localhost:8080/api/admin/model/info"));
-    setJobs(await getJson<any[]>("http://localhost:8080/api/admin/model/jobs?limit=50"));
-    setScorecards(await getJson<any[]>("http://localhost:8080/api/admin/model/scorecards?scopeType=GLOBAL&scopeKey=*&limit=50"));
-    setRegistry(await getJson<any[]>("http://localhost:8080/api/admin/model/registry?kind=risk-model&scopeType=GLOBAL&scopeKey=*&limit=50"));
-    setCanary(await getJson<any>("http://localhost:8080/api/admin/model/canary?scopeType=GLOBAL&scopeKey=*"));
-    setChanges(await getJson<any[]>("http://localhost:8080/api/admin/model/changes?scopeType=GLOBAL&scopeKey=*&limit=100"));
+    setInfo(await getJson<ModelInfo>(`${API_BASE}/admin/model/info`));
+    setJobs(await getJson<any[]>(`${API_BASE}/admin/model/jobs?limit=50`));
+    setScorecards(await getJson<any[]>(`${API_BASE}/admin/model/scorecards?scopeType=GLOBAL&scopeKey=*&limit=50`));
+    setRegistry(await getJson<any[]>(`${API_BASE}/admin/model/registry?kind=risk-model&scopeType=GLOBAL&scopeKey=*&limit=50`));
+    setCanary(await getJson<any>(`${API_BASE}/admin/model/canary?scopeType=GLOBAL&scopeKey=*`));
+    setChanges(await getJson<any[]>(`${API_BASE}/admin/model/changes?scopeType=GLOBAL&scopeKey=*&limit=100`));
   }
 
   useEffect(() => {
@@ -66,7 +67,7 @@ export function AdminMlView() {
   async function enqueueRetrain() {
     setBusy(true);
     try {
-      await post("http://localhost:8080/api/admin/model/retrain?reason=manual-ui");
+      await post(`${API_BASE}/admin/model/retrain?reason=manual-ui`);
       await refresh();
     } catch (e: any) {
       setErr(e?.message || String(e));
@@ -78,7 +79,7 @@ export function AdminMlView() {
   async function retrainNow() {
     setBusy(true);
     try {
-      await post("http://localhost:8080/api/admin/model/retrainNow?limit=500");
+      await post(`${API_BASE}/admin/model/retrainNow?limit=500`);
       await refresh();
     } catch (e: any) {
       setErr(e?.message || String(e));
@@ -90,7 +91,7 @@ export function AdminMlView() {
   async function activateModel(id: number) {
     setBusy(true);
     try {
-      await post(`http://localhost:8080/api/admin/model/activate?modelId=${id}&actor=ui&reason=ui-activate`);
+      await post(`${API_BASE}/admin/model/activate?modelId=${id}&actor=ui&reason=ui-activate`);
       await refresh();
     } catch (e: any) {
       setErr(e?.message || String(e));
@@ -102,7 +103,7 @@ export function AdminMlView() {
   async function rollback() {
     setBusy(true);
     try {
-      await post("http://localhost:8080/api/admin/model/rollback?actor=ui&reason=ui-rollback&scopeType=GLOBAL&scopeKey=*");
+      await post(`${API_BASE}/admin/model/rollback?actor=ui&reason=ui-rollback&scopeType=GLOBAL&scopeKey=*`);
       await refresh();
     } catch (e: any) {
       setErr(e?.message || String(e));
@@ -114,7 +115,7 @@ export function AdminMlView() {
   async function openScorecard(id: number) {
     setBusy(true);
     try {
-      const sc = await getJson<Scorecard>(`http://localhost:8080/api/admin/model/scorecards/${id}`);
+      const sc = await getJson<Scorecard>(`${API_BASE}/admin/model/scorecards/${id}`);
       setSelected(sc);
     } catch (e: any) {
       setErr(e?.message || String(e));
@@ -126,7 +127,7 @@ export function AdminMlView() {
   async function startCanary() {
     setBusy(true);
     try {
-      await post(`http://localhost:8080/api/admin/model/canary/start?modelId=${Number(canaryModelId)}&percent=${Number(canaryPercent)}&actor=ui&reason=ui-canary-start&scopeType=GLOBAL&scopeKey=*`);
+      await post(`${API_BASE}/admin/model/canary/start?modelId=${Number(canaryModelId)}&percent=${Number(canaryPercent)}&actor=ui&reason=ui-canary-start&scopeType=GLOBAL&scopeKey=*`);
       await refresh();
     } catch (e: any) {
       setErr(e?.message || String(e));
@@ -138,7 +139,7 @@ export function AdminMlView() {
   async function stepCanary(p: number) {
     setBusy(true);
     try {
-      await post(`http://localhost:8080/api/admin/model/canary/step?percent=${p}&actor=ui&reason=ui-canary-step&scopeType=GLOBAL&scopeKey=*`);
+      await post(`${API_BASE}/admin/model/canary/step?percent=${p}&actor=ui&reason=ui-canary-step&scopeType=GLOBAL&scopeKey=*`);
       await refresh();
     } catch (e: any) {
       setErr(e?.message || String(e));
@@ -150,7 +151,7 @@ export function AdminMlView() {
   async function stopCanary() {
     setBusy(true);
     try {
-      await post("http://localhost:8080/api/admin/model/canary/stop?actor=ui&reason=ui-canary-stop&scopeType=GLOBAL&scopeKey=*");
+      await post(`${API_BASE}/admin/model/canary/stop?actor=ui&reason=ui-canary-stop&scopeType=GLOBAL&scopeKey=*`);
       await refresh();
     } catch (e: any) {
       setErr(e?.message || String(e));

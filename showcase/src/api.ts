@@ -62,8 +62,9 @@ export interface SessionSummary {
   createdAt: string;
 }
 
-//const API_BASE = "/api";
-const API_BASE = "https://localhost:8443/api";
+// All frontend API calls should go via the gateway (8443) by default.
+// Override at build/runtime with: VITE_API_BASE=https://localhost:8443/api
+export const API_BASE: string = (import.meta as any).env?.VITE_API_BASE ?? "https://localhost:8443/api";
 
 
 export async function postProfileCheck(payload: TelemetryPayload): Promise<DecisionResponse> {
