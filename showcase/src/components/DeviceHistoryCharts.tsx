@@ -104,7 +104,7 @@ export function DeviceHistoryCharts({ userHint, onTlsSelect }: DeviceHistoryChar
                   <div
                     style={{
                       flex: 1,
-                      background: "#e5e7eb",
+                      background: "rgba(255,255,255,0.08)",
                       borderRadius: 999,
                       overflow: "hidden"
                     }}
@@ -140,8 +140,8 @@ const cardStyle: React.CSSProperties = {
   borderRadius: 8,
   borderWidth: 1,
   borderStyle: "solid",
-  borderColor: "#e5e7eb",
-  background: "#fff",
+  borderColor: "var(--border)",
+  background: "var(--panel)",
   padding: "0.75rem 1rem",
   minHeight: 160,
   boxSizing: "border-box"

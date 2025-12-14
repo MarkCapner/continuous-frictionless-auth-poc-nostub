@@ -20,8 +20,3 @@ management:
     web:
       exposure:
         include: health,info,metrics
-
-poc:
-  admin:
-    token: dev-admin-token
-

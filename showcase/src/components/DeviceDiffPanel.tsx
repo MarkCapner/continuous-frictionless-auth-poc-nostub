@@ -226,8 +226,8 @@ const cardStyle: React.CSSProperties = {
   borderRadius: 8,
   borderWidth: 1,
   borderStyle: "solid",
-  borderColor: "#e5e7eb",
-  background: "#fff",
+  borderColor: "var(--border)",
+  background: "var(--panel)",
   padding: "0.75rem 1rem",
   minHeight: 160,
   boxSizing: "border-box"
@@ -287,7 +287,7 @@ const buttonStyle: React.CSSProperties = {
   border: "none",
   cursor: "pointer",
   background: "#4f46e5",
-  color: "#fff",
+  color: "var(--text)",
   fontSize: "0.85rem",
   fontWeight: 500,
   whiteSpace: "nowrap"
@@ -319,10 +319,10 @@ const summaryBlockStyle: React.CSSProperties = {
   borderRadius: 8,
   borderWidth: 1,
   borderStyle: "solid",
-  borderColor: "#e5e7eb",
+  borderColor: "var(--border)",
   padding: "0.5rem 0.6rem",
   fontSize: "0.8rem",
-  background: "#f9fafb"
+  background: "rgba(255,255,255,0.04)"
 };
 
 const summaryLineStyle: React.CSSProperties = {

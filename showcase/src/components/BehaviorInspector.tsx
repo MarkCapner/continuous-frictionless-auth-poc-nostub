@@ -90,7 +90,7 @@ export function BehaviorInspector({ userHint }: BehaviorInspectorProps) {
                       ...timelineDotStyle,
                       background: colour,
                       opacity: isSelected ? 1 : 0.7,
-                      outline: isSelected ? "2px solid #111827" : "none"
+                      outline: isSelected ? "2px solid var(--accent)" : "none"
                     }}
                     title={`${item.decision} – ${(item.confidence * 100).toFixed(1)}% at ${formatDateTime(
                       item.occurredAt
@@ -245,7 +245,7 @@ function FeatureSummary({ behaviorJson }: FeatureSummaryProps) {
         return (
           <div key={e.key} style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
             <div style={{ width: 150, fontSize: "0.75rem", color: "#374151" }}>{e.key}</div>
-            <div style={{ flex: 1, background: "#e5e7eb", borderRadius: 999, overflow: "hidden" }}>
+            <div style={{ flex: 1, background: "rgba(255,255,255,0.08)", borderRadius: 999, overflow: "hidden" }}>
               <div
                 style={{
                   width: `${pct}%`,
@@ -282,9 +282,9 @@ function DecisionTag({ decision }: DecisionTagProps) {
         borderRadius: 999,
         borderWidth: 1,
         borderStyle: "solid",
-        borderColor: "#e5e7eb",
+        borderColor: "var(--border)",
         fontSize: "0.75rem",
-        background: "#f9fafb"
+        background: "rgba(255,255,255,0.04)"
       }}
     >
       <span
@@ -304,8 +304,8 @@ const cardStyle: React.CSSProperties = {
   borderRadius: 8,
   borderWidth: 1,
   borderStyle: "solid",
-  borderColor: "#e5e7eb",
-  background: "#fff",
+  borderColor: "var(--border)",
+  background: "var(--panel)",
   padding: "0.75rem 1rem",
   minHeight: 220,
   display: "flex",
@@ -379,7 +379,7 @@ const timelineDotStyle: React.CSSProperties = {
   borderRadius: 999,
   borderWidth: 1,
   borderStyle: "solid",
-  borderColor: "#e5e7eb",
+  borderColor: "var(--border)",
   padding: 0,
   cursor: "pointer"
 };

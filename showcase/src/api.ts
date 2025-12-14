@@ -169,95 +169,15 @@ export interface TlsFamilyDetails {
   issuer: Record<string, string>;
 }
 
-/**
- * Showcase-safe TLS family lookup response.
- *
- * EPIC 9.1.1: The showcase endpoint must never 404 when a TLS FP hasn't been clustered yet.
- */
-export interface TlsFamilyShowcaseResponse {
-  fp: string;
-  notObserved: boolean;
-  message: string | null;
-  variants: string[];
-  familyId: string | null;
-  familyKey: string | null;
-  sampleTlsFp: string | null;
-  users: number | null;
-  seenCount: number | null;
-  createdAt: string | null;
-  lastSeen: string | null;
-  subject: Record<string, string>;
-  issuer: Record<string, string>;
-  confidence: number | null;
-  stability: number | null;
-}
-
-export async function fetchTlsFamilyDetailsByFp(fp: string, variantsLimit: number = 10): Promise<TlsFamilyShowcaseResponse | null> {
+export async function fetchTlsFamilyDetailsByFp(fp: string, variantsLimit: number = 10): Promise<TlsFamilyDetails | null> {
   if (!fp || fp === "none") return null;
   const params = new URLSearchParams({ fp, variants_limit: String(variantsLimit) });
   const res = await fetch(`${API_BASE}/showcase/tls-fp/family?${params.toString()}`);
+  if (res.status === 404) return null;
   if (!res.ok) {
     throw new Error(`Failed to fetch TLS family: ${res.status}`);
   }
-  return (await res.json()) as TlsFamilyShowcaseResponse;
-}
-
-/**
- * EPIC 9.1.3: Admin-only force normalise & classify a TLS FP into a family.
- *
- * This is idempotent. For safety, tls_meta should include certificate subject/issuer.
- */
-export async function forceClassifyTlsFamily(
-  fp: string,
-  tlsMeta: string | null,
-  adminToken: string,
-  variantsLimit: number = 12
-): Promise<TlsFamilyShowcaseResponse> {
-  const params = new URLSearchParams({ fp, variants_limit: String(variantsLimit) });
-  if (tlsMeta && tlsMeta.trim().length > 0) {
-    params.set("tls_meta", tlsMeta);
-  }
-  const res = await fetch(`${API_BASE}/admin/tls-families/force-classify?${params.toString()}`, {
-    method: "POST",
-    headers: {
-      "X-Admin-Token": adminToken
-    }
-  });
-  if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(`Force classify failed: ${res.status}${txt ? ` - ${txt}` : ""}`);
-  }
-  return (await res.json()) as TlsFamilyShowcaseResponse;
-}
-
-export interface TlsFamilyBackfillResponse {
-  processed: number;
-  classified: number;
-  batches: number;
-  complete: boolean;
-  lastFp: string | null;
-}
-
-/**
- * EPIC 9.1.4 / 9.1.5: Admin-triggered backfill of TLS families for historical TLS fingerprints.
- */
-export async function backfillTlsFamilies(
-  adminToken: string,
-  batchSize: number = 500,
-  maxBatches: number = 20
-): Promise<TlsFamilyBackfillResponse> {
-  const params = new URLSearchParams({ batchSize: String(batchSize), maxBatches: String(maxBatches) });
-  const res = await fetch(`${API_BASE}/admin/tls-families/backfill?${params.toString()}`, {
-    method: "POST",
-    headers: {
-      "X-Admin-Token": adminToken
-    }
-  });
-  if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(`Backfill failed: ${res.status}${txt ? ` - ${txt}` : ""}`);
-  }
-  return (await res.json()) as TlsFamilyBackfillResponse;
+  return (await res.json()) as TlsFamilyDetails;
 }
 
 

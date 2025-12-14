@@ -7,75 +7,68 @@ interface BehaviorPanelProps {
 
 export function BehaviorPanel({ behavior }: BehaviorPanelProps) {
   return (
-    <div style={cardStyle}>
-      <h2>Behavior</h2>
-      {!behavior && (
+    <div className="card">
+      <div className="cardTitle">
+        <h3>Behaviour signals</h3>
+        <span className="chip chipAccent2">privacy-safe</span>
+      </div>
+
+      {!behavior ? (
         <>
-          <p>No behavior captured yet. Move the mouse, scroll and type before running a check.</p>
-          <p style={noteStyle}>
-            Privacy: only aggregate counts and timings are collected, never raw keystrokes.
+          <p className="muted" style={{ marginTop: 0 }}>
+            No behaviour captured yet. Move the mouse, scroll, and type before running a check.
+          </p>
+          <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>
+            Privacy: only aggregate counts and timings are collected — never raw keystrokes.
           </p>
         </>
-      )}
-      {behavior && (
+      ) : (
         <>
-          <p style={{ fontSize: "0.9rem", marginTop: 0 }}>
-            These features come from the built-in behavioural profiler. Type and move the mouse before
-            clicking <strong>Run profile check</strong> to update them.
+          <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
+            These features come from the built-in behavioural profiler. Type and move the mouse before clicking{" "}
+            <strong>Run profile check</strong> to update them.
           </p>
-          <ul style={{ paddingLeft: "1.1rem", fontSize: "0.9rem" }}>
-            <li>Mouse moves: {behavior.mouse_moves}</li>
-            <li>Mouse distance: {behavior.mouse_distance.toFixed(1)} px</li>
-            <li>Key presses: {behavior.key_presses}</li>
-            <li>Avg key interval: {behavior.avg_key_interval_ms.toFixed(1)} ms</li>
-            <li>Key interval std dev: {behavior.key_interval_std_ms.toFixed(1)} ms</li>
-            <li>Scroll events: {behavior.scroll_events}</li>
-            <li>Scroll cadence: {behavior.scroll_events_per_sec.toFixed(2)} events/sec</li>
-            <li>Pointer avg velocity: {behavior.pointer_avg_velocity.toFixed(4)} px/ms</li>
-            <li>Pointer max velocity: {behavior.pointer_max_velocity.toFixed(4)} px/ms</li>
-          </ul>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <span className="chip">mouse moves · {behavior.mouse_moves}</span>
+            <span className="chip">mouse distance · {behavior.mouse_distance.toFixed(1)} px</span>
+            <span className="chip">key presses · {behavior.key_presses}</span>
+            <span className="chip">avg key interval · {behavior.avg_key_interval_ms.toFixed(1)} ms</span>
+            <span className="chip">key interval std · {behavior.key_interval_std_ms.toFixed(1)} ms</span>
+            <span className="chip">scroll events · {behavior.scroll_events}</span>
+            <span className="chip">scroll cadence · {behavior.scroll_events_per_sec.toFixed(2)}/s</span>
+            <span className="chip">pointer avg v · {behavior.pointer_avg_velocity.toFixed(4)} px/ms</span>
+            <span className="chip">pointer max v · {behavior.pointer_max_velocity.toFixed(4)} px/ms</span>
+          </div>
         </>
       )}
-      <div style={{ marginTop: "0.75rem" }}>
-        <label style={{ fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: "0.25rem" }}>
+
+      <div className="divider" />
+
+      <label style={{ display: "block" }}>
+        <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>
           Typing playground (for keystroke dynamics)
-        </label>
+        </div>
         <textarea
           rows={3}
           placeholder="Type here at your normal speed. Only timing statistics are sent, never the raw text."
-          style={textareaStyle}
+          style={{
+            width: "100%",
+            borderRadius: 12,
+            border: "1px solid rgba(255,255,255,0.14)",
+            background: "rgba(255,255,255,0.05)",
+            color: "var(--text)",
+            padding: "10px",
+            fontSize: 13,
+            resize: "vertical",
+            boxSizing: "border-box",
+            outline: "none"
+          }}
         />
-        <p style={noteStyle}>
-          Tip: try different typing styles or devices (e.g. laptop vs. external keyboard) and see how the
-          behavioural score and overall decision change.
-        </p>
-      </div>
+      </label>
+      <p className="muted" style={{ fontSize: 12, marginTop: 10, marginBottom: 0 }}>
+        Tip: try different typing styles or devices (e.g. laptop vs external keyboard) and see how the behavioural score
+        and overall decision change.
+      </p>
     </div>
   );
 }
-
-const cardStyle: React.CSSProperties = {
-  border: "1px solid #ddd",
-  borderRadius: 8,
-  padding: "1rem",
-  background: "#fff",
-  boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-  flex: 1,
-  minWidth: 260
-};
-
-const noteStyle: React.CSSProperties = {
-  fontSize: "0.8rem",
-  color: "#555",
-  marginTop: "0.75rem"
-};
-
-const textareaStyle: React.CSSProperties = {
-  width: "100%",
-  borderRadius: 6,
-  border: "1px solid #d1d5db",
-  padding: "0.5rem",
-  fontSize: "0.85rem",
-  resize: "vertical",
-  boxSizing: "border-box"
-};

@@ -49,7 +49,7 @@ const cardStyle: React.CSSProperties = {
   border: "1px solid #ddd",
   borderRadius: 8,
   padding: "1rem",
-  background: "#fff",
+  background: "var(--panel)",
   boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
   flex: 1,
   minWidth: 260

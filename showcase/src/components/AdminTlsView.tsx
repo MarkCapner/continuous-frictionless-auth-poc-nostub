@@ -16,7 +16,7 @@ export function AdminTlsView() {
       setLoading(true);
       setError(null);
       try {
-        const data = await fetchAllTlsFingerprintSummaries(100);
+        const data = await fetchAllTlsFingerprintSummaries(200);
         if (!cancelled) {
           setSummaries(data);
           if (!selectedFp && data.length > 0) {
@@ -34,131 +34,77 @@ export function AdminTlsView() {
       }
     };
 
-    run();
+    void run();
     return () => {
       cancelled = true;
     };
   }, []);
 
   return (
-    <div style={pageStyle}>
-      <header style={headerStyle}>
+    <div className="stack">
+      <div className="pageHeader">
         <div>
-          <h1 style={{ margin: 0 }}>Admin / TLS fingerprints</h1>
-          <p style={{ margin: 0, fontSize: "0.9rem", color: "#4b5563" }}>
-            Explore all known TLS fingerprints in the device_profile table and drill into each one.
+          <h2>Admin / TLS fingerprints</h2>
+          <p>
+            Explore all known TLS fingerprints and drill into each one. Select a row to view the
+            family, variants, and normalisation output.
           </p>
         </div>
-      </header>
+        <div />
+      </div>
 
-      <div style={gridStyle}>
-        <div style={tableCardStyle}>
-          <h2 style={{ marginTop: 0 }}>Fingerprints</h2>
-          {loading && <p>Loading TLS fingerprints…</p>}
-          {error && <p style={{ color: "red" }}>{error}</p>}
+      <div className="grid2">
+        <div className="card">
+          <div className="cardTitle">
+            <h3>Fingerprints</h3>
+            <span className="muted">{summaries.length} total</span>
+          </div>
+
+          {loading && <p className="muted">Loading TLS fingerprints…</p>}
+          {error && <p className="muted" style={{ color: "var(--danger)" }}>{error}</p>}
           {!loading && !error && summaries.length === 0 && (
-            <p style={{ fontSize: "0.9rem" }}>No fingerprints yet. Run some profile checks first.</p>
+            <p className="muted">No fingerprints yet. Run some profile checks first.</p>
           )}
+
           {!loading && !error && summaries.length > 0 && (
-            <div style={{ maxHeight: 360, overflowY: "auto", marginTop: "0.5rem" }}>
-              <table style={tableStyle}>
+            <div className="tableWrap" style={{ maxHeight: 420 }}>
+              <table className="table">
                 <thead>
                   <tr>
-                    <th style={thStyle}>TLS FP</th>
-                    <th style={thStyle}>Profiles</th>
-                    <th style={thStyle}>Users</th>
-                    <th style={thStyle}>First seen</th>
-                    <th style={thStyle}>Last seen</th>
+                    <th>TLS FP</th>
+                    <th>Profiles</th>
+                    <th>Users</th>
+                    <th>First seen</th>
+                    <th>Last seen</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {summaries.map((s) => (
-                    <tr
-                      key={s.tlsFp}
-                      onClick={() => setSelectedFp(s.tlsFp)}
-                      style={
-                        s.tlsFp === selectedFp
-                          ? { ...trStyle, background: "#eff6ff" }
-                          : trStyle
-                      }
-                    >
-                      <td style={tdStyle}>
-                        <code>{s.tlsFp}</code>
-                      </td>
-                      <td style={tdStyle}>{s.profiles}</td>
-                      <td style={tdStyle}>{s.users}</td>
-                      <td style={tdStyle}>{new Date(s.firstSeen).toLocaleString()}</td>
-                      <td style={tdStyle}>{new Date(s.lastSeen).toLocaleString()}</td>
-                    </tr>
-                  ))}
+                  {summaries.map((s) => {
+                    const active = s.tlsFp === selectedFp;
+                    return (
+                      <tr
+                        key={s.tlsFp}
+                        onClick={() => setSelectedFp(s.tlsFp)}
+                        className={`rowBtn ${active ? "rowActive" : ""}`}
+                      >
+                        <td className="mono">{s.tlsFp}</td>
+                        <td>{s.profiles}</td>
+                        <td>{s.users}</td>
+                        <td className="muted">{new Date(s.firstSeen).toLocaleString()}</td>
+                        <td className="muted">{new Date(s.lastSeen).toLocaleString()}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           )}
         </div>
-        <div style={detailCardStyle}>
+
+        <div className="stack">
           <TlsFingerprintInspector tlsFp={selectedFp} />
         </div>
       </div>
     </div>
   );
 }
-
-const pageStyle: React.CSSProperties = {
-  maxWidth: 1200,
-  margin: "0 auto",
-  padding: "1.5rem 1.25rem 2rem"
-};
-
-const headerStyle: React.CSSProperties = {
-  marginBottom: "1rem",
-  display: "flex",
-  alignItems: "baseline",
-  justifyContent: "space-between",
-  gap: "1rem"
-};
-
-const gridStyle: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1.3fr 1fr",
-  gap: "1.25rem",
-  alignItems: "flex-start"
-};
-
-const tableCardStyle: React.CSSProperties = {
-  border: "1px solid #ddd",
-  borderRadius: 8,
-  padding: "1rem",
-  background: "#fff",
-  boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
-};
-
-const detailCardStyle: React.CSSProperties = {
-  minWidth: 0
-};
-
-const tableStyle: React.CSSProperties = {
-  width: "100%",
-  borderCollapse: "collapse",
-  fontSize: "0.8rem"
-};
-
-const thStyle: React.CSSProperties = {
-  textAlign: "left",
-  padding: "0.25rem 0.35rem",
-  borderBottom: "1px solid #e5e7eb",
-  position: "sticky",
-  top: 0,
-  background: "#f9fafb",
-  zIndex: 1
-};
-
-const trStyle: React.CSSProperties = {
-  cursor: "pointer"
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: "0.25rem 0.35rem",
-  borderBottom: "1px solid #f3f4f6",
-  verticalAlign: "top"
-};

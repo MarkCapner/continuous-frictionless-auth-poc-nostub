@@ -147,8 +147,8 @@ const cardStyle: React.CSSProperties = {
   borderRadius: 8,
   borderWidth: 1,
   borderStyle: "solid",
-  borderColor: "#e5e7eb",
-  background: "#fff",
+  borderColor: "var(--border)",
+  background: "var(--panel)",
   padding: "0.75rem 1rem",
   minHeight: 180,
   boxSizing: "border-box"
@@ -198,7 +198,7 @@ const buttonStyle: React.CSSProperties = {
   borderStyle: "solid",
   borderColor: "#4f46e5",
   background: "#4f46e5",
-  color: "#fff",
+  color: "var(--text)",
   cursor: "pointer",
   whiteSpace: "nowrap"
 };

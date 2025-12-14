@@ -260,8 +260,8 @@ const cardStyle: React.CSSProperties = {
   borderRadius: 8,
   borderWidth: 1,
   borderStyle: "solid",
-  borderColor: "#e5e7eb",
-  background: "#fff",
+  borderColor: "var(--border)",
+  background: "var(--panel)",
   padding: "0.75rem 1rem",
   minHeight: 220,
   display: "flex",
@@ -308,7 +308,7 @@ const timelineRailStyle: React.CSSProperties = {
   top: 0,
   bottom: 0,
   width: 2,
-  background: "#e5e7eb"
+  background: "rgba(255,255,255,0.08)"
 };
 
 const timelineListStyle: React.CSSProperties = {
@@ -338,8 +338,8 @@ const eventCardStyle: React.CSSProperties = {
   borderRadius: 8,
   borderWidth: 1,
   borderStyle: "solid",
-  borderColor: "#e5e7eb",
-  background: "#f9fafb",
+  borderColor: "var(--border)",
+  background: "rgba(255,255,255,0.04)",
   padding: "0.5rem 0.75rem"
 };
 
@@ -374,8 +374,8 @@ const scorePillStyle: React.CSSProperties = {
   borderRadius: 999,
   borderWidth: 1,
   borderStyle: "solid",
-  borderColor: "#e5e7eb",
-  background: "#fff"
+  borderColor: "var(--border)",
+  background: "var(--panel)"
 };
 
 const explanationsListStyle: React.CSSProperties = {
@@ -392,7 +392,7 @@ const decisionTagStyle: React.CSSProperties = {
   borderWidth: 1,
   borderStyle: "solid",
   borderColor: "#9ca3af",
-  background: "#fff",
+  background: "var(--panel)",
   display: "inline-flex",
   alignItems: "center"
 };

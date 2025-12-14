@@ -18,9 +18,7 @@ export function AdminMlView() {
     }
   }
 
-  useEffect(() => {
-    void loadInfo();
-  }, []);
+  useEffect(() => { void loadInfo(); }, []);
 
   async function handleRetrain() {
     try {
@@ -36,110 +34,86 @@ export function AdminMlView() {
   }
 
   return (
-    <section style={containerStyle}>
-      <h2>Admin / ML Model</h2>
-      <p style={{ maxWidth: 640 }}>
-        This panel shows the currently active ML model (as recorded in the{" "}
-        <code>model_registry</code> table) and lets you trigger a retrain from recent{" "}
-        <code>session_feature</code> rows directly from the browser.
-      </p>
-
-      <div style={cardStyle}>
-        <div style={rowStyle}>
-          <span>Model ready:</span>
-          <strong>{info?.ready ? "Yes" : "No"}</strong>
+    <div className="stack">
+      <div className="pageHeader">
+        <div>
+          <h2>Admin / ML model</h2>
+          <p>
+            Shows the active model in <span className="mono">model_registry</span> and lets you trigger
+            a retrain from recent <span className="mono">session_feature</span> rows.
+          </p>
         </div>
-        <div style={rowStyle}>
-          <span>In-memory version:</span>
-          <code>{info?.modelVersion ?? "unknown"}</code>
-        </div>
-        <div style={rowStyle}>
-          <span>Registry name:</span>
-          <code>{info?.registryName ?? "—"}</code>
-        </div>
-        <div style={rowStyle}>
-          <span>Registry format:</span>
-          <code>{info?.registryFormat ?? "—"}</code>
-        </div>
-        <div style={rowStyle}>
-          <span>Registry version:</span>
-          <code>{info?.registryVersion ?? "—"}</code>
-        </div>
-        <div style={rowStyle}>
-          <span>Last trained at:</span>
-          <code>{info?.lastTrainedAt ?? "—"}</code>
-        </div>
+        <div />
       </div>
 
-      <div style={{ marginTop: "1rem", display: "flex", gap: "0.75rem", alignItems: "center" }}>
-        <label>
-          Retrain using last{" "}
-          <input
-            type="number"
-            min={10}
-            max={5000}
-            value={limit}
-            onChange={(e) => setLimit(Number(e.target.value) || 0)}
-            style={{ width: 90, margin: "0 0.25rem" }}
-          />
-          sessions
-        </label>
-        <button
-          type="button"
-          onClick={handleRetrain}
-          disabled={loading || limit <= 0}
-          style={buttonStyle}
-        >
-          {loading ? "Retraining..." : "Retrain model"}
-        </button>
-        <button type="button" onClick={loadInfo} disabled={loading} style={secondaryButtonStyle}>
-          Refresh
-        </button>
-      </div>
+      {error && <div className="card cardDanger">
+        <div className="muted textDanger">Error: {error}</div>
+      </div>}
 
-      {error && (
-        <p style={{ color: "#b91c1c", marginTop: "0.75rem" }}>
-          Error: {error}
-        </p>
-      )}
-    </section>
+      <div className="grid2">
+        <div className="card">
+          <div className="cardTitle">
+            <h3>Model status</h3>
+            <span className="chip chipAccent">{info?.ready ? "Ready" : "Not ready"}</span>
+          </div>
+
+          <div className="stack" style={{ gap: 8 }}>
+            <Row label="In-memory version" value={info?.modelVersion ?? "—"} mono />
+            <Row label="Registry name" value={info?.registryName ?? "—"} mono />
+            <Row label="Registry format" value={info?.registryFormat ?? "—"} mono />
+            <Row label="Registry version" value={info?.registryVersion ?? "—"} mono />
+            <Row label="Last trained at" value={info?.lastTrainedAt ?? "—"} mono />
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="cardTitle">
+            <h3>Retrain</h3>
+            <span className="muted">Admin action</span>
+          </div>
+
+          <div className="muted" style={{ marginBottom: 10 }}>
+            Retrain using the last N feature rows. For the PoC this is an in-place refresh of the active model.
+          </div>
+
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <label className="muted">
+              Limit{" "}
+              <input
+                type="number"
+                min={10}
+                max={5000}
+                value={limit}
+                onChange={(e) => setLimit(parseInt(e.target.value || "500", 10))}
+                style={{
+                  width: 120,
+                  marginLeft: 8,
+                  padding: "8px 10px",
+                  borderRadius: 10,
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  background: "rgba(0,0,0,0.20)",
+                  color: "var(--text)"
+                }}
+              />
+            </label>
+            <button type="button" className="btn btnPrimary" disabled={loading} onClick={handleRetrain}>
+              {loading ? "Retraining…" : "Retrain model"}
+            </button>
+            <button type="button" className="btn" disabled={loading} onClick={loadInfo}>
+              Refresh
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
-const containerStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "0.75rem"
-};
-
-const cardStyle: React.CSSProperties = {
-  borderRadius: 8,
-  border: "1px solid #e5e7eb",
-  padding: "0.75rem 1rem",
-  background: "#f9fafb",
-  maxWidth: 480
-};
-
-const rowStyle: React.CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  gap: "0.75rem",
-  padding: "0.15rem 0",
-  fontSize: "0.9rem"
-};
-
-const buttonStyle: React.CSSProperties = {
-  padding: "0.4rem 0.9rem",
-  borderRadius: 999,
-  border: "none",
-  cursor: "pointer",
-  background: "#4f46e5",
-  color: "#fff",
-  fontSize: "0.9rem"
-};
-
-const secondaryButtonStyle: React.CSSProperties = {
-  ...buttonStyle,
-  background: "#e5e7eb",
-  color: "#111827"
-};
+function Row(props: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 14 }}>
+      <span className="muted">{props.label}</span>
+      <span className={props.mono ? "mono" : ""}>{props.value}</span>
+    </div>
+  );
+}

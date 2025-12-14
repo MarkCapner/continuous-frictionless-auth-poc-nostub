@@ -84,8 +84,8 @@ const headerCardStyle: React.CSSProperties = {
   borderRadius: 8,
   borderWidth: 1,
   borderStyle: "solid",
-  borderColor: "#e5e7eb",
-  background: "#fff"
+  borderColor: "var(--border)",
+  background: "var(--panel)"
 };
 
 const subtitleStyle: React.CSSProperties = {

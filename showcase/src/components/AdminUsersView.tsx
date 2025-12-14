@@ -16,171 +16,162 @@ export function AdminUsersView() {
       setLoadingList(true);
       setError(null);
       try {
-        const data = await fetchAdminUsers(50);
+        const data = await fetchAdminUsers(100);
         if (!cancelled) {
           setUsers(data);
+          if (!selectedUserId && data.length > 0) setSelectedUserId(data[0].userId);
         }
       } catch (e: any) {
-        if (!cancelled) {
-          setError(e?.message ?? String(e));
-        }
+        if (!cancelled) setError(e?.message ?? String(e));
       } finally {
-        if (!cancelled) {
-          setLoadingList(false);
-        }
+        if (!cancelled) setLoadingList(false);
       }
     };
     void run();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
-  async function handleSelectUser(userId: string) {
-    setSelectedUserId(userId);
-    setDetail(null);
-    setLoadingDetail(true);
-    setError(null);
-    try {
-      const d = await fetchAdminUserDetail(userId);
-      setDetail(d);
-    } catch (e: any) {
-      setError(e?.message ?? String(e));
-    } finally {
-      setLoadingDetail(false);
-    }
-  }
+  useEffect(() => {
+    if (!selectedUserId) return;
+    let cancelled = false;
+    const run = async () => {
+      setDetail(null);
+      setLoadingDetail(true);
+      setError(null);
+      try {
+        const d = await fetchAdminUserDetail(selectedUserId);
+        if (!cancelled) setDetail(d);
+      } catch (e: any) {
+        if (!cancelled) setError(e?.message ?? String(e));
+      } finally {
+        if (!cancelled) setLoadingDetail(false);
+      }
+    };
+    void run();
+    return () => { cancelled = true; };
+  }, [selectedUserId]);
 
   return (
-    <div style={containerStyle}>
-      <section style={leftPaneStyle}>
-        <h2>Admin / Users</h2>
-        <p style={{ fontSize: "0.85rem", color: "#4b5563" }}>
-          This view aggregates <code>decision_log</code> by user and overlays the user-level reputation
-          and account sharing heuristics. Click a row to see the detailed reputation breakdown.
-        </p>
-        {error && (
-          <p style={{ color: "#b91c1c", fontSize: "0.85rem" }}>
-            Error: {error}
+    <div className="stack">
+      <div className="pageHeader">
+        <div>
+          <h2>Admin / Users</h2>
+          <p>
+            Aggregates <span className="mono">decision_log</span> by user and overlays user-level trust
+            and account-sharing heuristics. Select a user to view the breakdown.
           </p>
-        )}
-        <div style={{ marginTop: "0.75rem" }}>
-          {loadingList && <p style={{ fontSize: "0.85rem" }}>Loading users...</p>}
+        </div>
+        <div />
+      </div>
+
+      {error && (
+        <div className="card cardDanger">
+          <div className="muted textDanger">Error: {error}</div>
+        </div>
+      )}
+
+      <div className="grid2">
+        <div className="card">
+          <div className="cardTitle">
+            <h3>Users</h3>
+            <span className="muted">{users.length} total</span>
+          </div>
+
+          {loadingList && <p className="muted">Loading users…</p>}
           {!loadingList && users.length === 0 && (
-            <p style={{ fontSize: "0.85rem", color: "#6b7280" }}>
-              No users yet. Generate some traffic via the showcase first.
-            </p>
+            <p className="muted">No users yet. Generate some traffic via the Showcase first.</p>
           )}
+
           {users.length > 0 && (
-            <table style={tableStyle}>
-              <thead>
-                <tr>
-                  <th>User</th>
-                  <th>Sessions</th>
-                  <th>Devices</th>
-                  <th>Avg conf</th>
-                  <th>Trust</th>
-                  <th>Sharing risk</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((u) => (
-                  <tr
-                    key={u.userId}
-                    onClick={() => handleSelectUser(u.userId)}
-                    style={
-                      u.userId === selectedUserId
-                        ? { ...rowStyle, background: "#eef2ff", cursor: "pointer" }
-                        : { ...rowStyle, cursor: "pointer" }
-                    }
-                  >
-                    <td>{u.userId}</td>
-                    <td>{u.sessions}</td>
-                    <td>{u.devices}</td>
-                    <td>{u.avgConfidence.toFixed(2)}</td>
-                    <td>{u.userTrustScore.toFixed(2)}</td>
-                    <td>{u.userAccountSharingRisk.toFixed(2)}</td>
+            <div className="tableWrap" style={{ maxHeight: 420 }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Sessions</th>
+                    <th>Devices</th>
+                    <th>Avg conf</th>
+                    <th>Trust</th>
+                    <th>Sharing</th>
+                    <th>Last seen</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {users.map((u) => {
+                    const active = u.userId === selectedUserId;
+                    return (
+                      <tr
+                        key={u.userId}
+                        onClick={() => setSelectedUserId(u.userId)}
+                        className={`rowBtn ${active ? "rowActive" : ""}`}
+                      >
+                        <td className="mono">{u.userId}</td>
+                        <td>{u.sessions}</td>
+                        <td>{u.devices}</td>
+                        <td className="mono">{Number(u.avgConfidence).toFixed(3)}</td>
+                        <td className="mono">{Number(u.userTrustScore).toFixed(2)}</td>
+                        <td className="mono">{Number(u.userAccountSharingRisk).toFixed(2)}</td>
+                        <td className="muted">{u.lastSeen ? new Date(u.lastSeen).toLocaleString() : "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
-      </section>
 
-      <section style={rightPaneStyle}>
-        <h3>User reputation</h3>
-        {!selectedUserId && (
-          <p style={{ fontSize: "0.85rem", color: "#6b7280" }}>
-            Select a user on the left to see their reputation breakdown.
-          </p>
-        )}
-        {selectedUserId && loadingDetail && (
-          <p style={{ fontSize: "0.85rem" }}>Loading reputation for <code>{selectedUserId}</code>...</p>
-        )}
-        {selectedUserId && !loadingDetail && detail && (
-          <div style={detailCardStyle}>
-            <p style={{ margin: 0 }}>
-              <strong>User:</strong> <code>{detail.userId}</code>
-            </p>
-            <p style={{ margin: "0.25rem 0" }}>
-              <strong>Trust score:</strong> {detail.reputation.trustScore.toFixed(2)}
-            </p>
-            <p style={{ margin: "0.25rem 0" }}>
-              <strong>Account sharing risk:</strong> {detail.reputation.accountSharingRisk.toFixed(2)}{" "}
-              {detail.sharing.suspicious && (
-                <span style={{ color: "#b91c1c" }}>(suspicious)</span>
-              )}
-            </p>
-            <p style={{ margin: "0.25rem 0" }}>
-              <strong>Devices:</strong> {detail.reputation.deviceCount} | TLS fingerprints:{" "}
-              {detail.reputation.tlsFingerprintCount} | Countries: {detail.reputation.countryCount}
-            </p>
-            <p style={{ margin: "0.25rem 0" }}>
-              <strong>Sessions (30d):</strong> {detail.reputation.sessionsLast30d} | Recent avg confidence:{" "}
-              {detail.reputation.avgConfidenceRecent.toFixed(2)}
-            </p>
-            <p style={{ marginTop: "0.75rem", fontSize: "0.8rem", color: "#4b5563" }}>
-              Sharing heuristics: TLS fingerprints={detail.sharing.tlsFingerprintCount}, countries=
-              {detail.sharing.countryCount}.
-            </p>
+        <div className="card">
+          <div className="cardTitle">
+            <h3>User detail</h3>
+            <span className="muted">{selectedUserId ? <span className="mono">{selectedUserId}</span> : "—"}</span>
           </div>
-        )}
-      </section>
+
+          {!selectedUserId && <p className="muted">Select a user to view detail.</p>}
+          {selectedUserId && loadingDetail && <p className="muted">Loading detail…</p>}
+          {selectedUserId && !loadingDetail && !detail && <p className="muted">No detail returned.</p>}
+
+          {detail && (
+            <div className="stack" style={{ gap: 12 }}>
+              <div className="grid2Tight">
+                <div className="card cardFlat">
+                  <div className="muted">Trust score</div>
+                  <div style={{ fontSize: 22, fontWeight: 700 }}>{detail.reputation.trustScore.toFixed(2)}</div>
+                </div>
+                <div className="card cardFlat">
+                  <div className="muted">Sharing risk</div>
+                  <div style={{ fontSize: 22, fontWeight: 700 }}>{detail.reputation.accountSharingRisk.toFixed(2)}</div>
+                </div>
+              </div>
+
+              <div className="card cardFlat">
+                <div className="muted" style={{ marginBottom: 8 }}>Reputation signals</div>
+                <KV label="Device count" value={String(detail.reputation.deviceCount)} />
+                <KV label="TLS fingerprint count" value={String(detail.reputation.tlsFingerprintCount)} />
+                <KV label="Country count" value={String(detail.reputation.countryCount)} />
+                <KV label="Avg confidence (recent)" value={detail.reputation.avgConfidenceRecent.toFixed(3)} mono />
+                <KV label="Sessions (last 30d)" value={String(detail.reputation.sessionsLast30d)} />
+              </div>
+
+              <div className="card cardFlat">
+                <div className="muted" style={{ marginBottom: 8 }}>Sharing heuristic</div>
+                <KV label="Suspicious" value={detail.sharing.suspicious ? "Yes" : "No"} />
+                <KV label="TLS fingerprint count" value={String(detail.sharing.tlsFingerprintCount)} />
+                <KV label="Country count" value={String(detail.sharing.countryCount)} />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
-const containerStyle: React.CSSProperties = {
-  display: "flex",
-  gap: "1.5rem",
-  alignItems: "flex-start"
-};
-
-const leftPaneStyle: React.CSSProperties = {
-  flex: 1.3,
-  minWidth: 0
-};
-
-const rightPaneStyle: React.CSSProperties = {
-  flex: 1,
-  minWidth: 0
-};
-
-const tableStyle: React.CSSProperties = {
-  width: "100%",
-  borderCollapse: "collapse",
-  fontSize: "0.85rem"
-};
-
-const rowStyle: React.CSSProperties = {
-  borderBottom: "1px solid #e5e7eb"
-};
-
-const detailCardStyle: React.CSSProperties = {
-  borderRadius: 8,
-  border: "1px solid #e5e7eb",
-  padding: "0.75rem 1rem",
-  background: "#f9fafb",
-  fontSize: "0.85rem"
-};
+function KV(props: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 14, marginBottom: 6 }}>
+      <span className="muted">{props.label}</span>
+      <span className={props.mono ? "mono" : ""}>{props.value}</span>
+    </div>
+  );
+}
