@@ -8,6 +8,8 @@ import com.poc.api.model.Telemetry;
 import com.poc.api.persistence.DecisionLogRepository;
 import com.poc.api.persistence.DeviceProfile;
 import com.poc.api.persistence.SessionFeatureRepository;
+import com.poc.api.persistence.ModelCanaryPolicyRepository;
+import com.poc.api.persistence.ModelRegistryRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -26,6 +28,8 @@ public class RiskService {
   private final FeatureBuilder featureBuilder;
   private final RulesEngine rulesEngine;
   private final ModelProvider modelProvider;
+  private final ModelCanaryPolicyRepository canaryPolicyRepository;
+  private final ModelRegistryRepository modelRegistryRepository;
   private final SessionFeatureRepository sessionFeatureRepository;
   private final DecisionLogRepository decisionLogRepository;
   private final AccountSharingHeuristics accountSharingHeuristics;
@@ -38,6 +42,8 @@ public class RiskService {
                      FeatureBuilder featureBuilder,
                      RulesEngine rulesEngine,
                      ModelProvider modelProvider,
+                     ModelCanaryPolicyRepository canaryPolicyRepository,
+                     ModelRegistryRepository modelRegistryRepository,
                      SessionFeatureRepository sessionFeatureRepository,
                      DecisionLogRepository decisionLogRepository,
                      AccountSharingHeuristics accountSharingHeuristics,
@@ -48,6 +54,8 @@ public class RiskService {
     this.featureBuilder = featureBuilder;
     this.rulesEngine = rulesEngine;
     this.modelProvider = modelProvider;
+    this.canaryPolicyRepository = canaryPolicyRepository;
+    this.modelRegistryRepository = modelRegistryRepository;
     this.sessionFeatureRepository = sessionFeatureRepository;
     this.decisionLogRepository = decisionLogRepository;
     this.accountSharingHeuristics = accountSharingHeuristics;
@@ -85,22 +93,26 @@ public class RiskService {
     FeatureBuilder.Features features = featureBuilder.build(profile, behaviorRes.score(), tlsFp, telemetry, tlsObs.tlsScore());
 
     // ML prediction via Tribuo (probability of being legit)
-    double pLegit = modelProvider.predict(
-        features.deviceScore(),
-        features.behaviorScore(),
-        features.tlsScore(),
-        features.contextScore()
-    );
+long selectedModelId = selectModelIdForCanary(userId, sessionId);
+double pLegit = modelProvider.predictWithModelId(
+    selectedModelId,
+    features.deviceScore(),
+    features.behaviorScore(),
+    features.tlsScore(),
+    features.contextScore()
+);
 
-    // EPIC 5: Isolation-Forest-based anomaly score
-    double anomalyScore = modelProvider.anomalyScore(
-        features.deviceScore(),
-        features.behaviorScore(),
-        features.tlsScore(),
-        features.contextScore()
-    );
+// EPIC 5: Isolation-Forest-based anomaly score
+double anomalyScore = modelProvider.anomalyScoreWithModelId(
+    selectedModelId,
+    features.deviceScore(),
+    features.behaviorScore(),
+    features.tlsScore(),
+    features.contextScore()
+);
 
-    // Rules
+// Rules
+
     RulesEngine.FeaturesWithContext fctx = new RulesEngine.FeaturesWithContext(
         profile,
         country,
@@ -124,6 +136,8 @@ public class RiskService {
 
     // EPIC 5: add anomaly score and selected behavioural z-scores + device/TLS rarity.
     enrichedBreakdown.put("ml_anomaly_score", anomalyScore);
+    enrichedBreakdown.put("model_id_used", (double) selectedModelId);
+    enrichedBreakdown.put("canary_enabled", isCanarySelected(userId, sessionId, selectedModelId) ? 1.0 : 0.0);
 
     behaviorRes.zScores().forEach((featureName, z) -> {
       enrichedBreakdown.put("behavior_z_" + featureName, z);
@@ -200,5 +214,31 @@ public class RiskService {
         tlsMeta,
         modelProvider.getModelVersion()
     );
+  }
+
+  private long selectModelIdForCanary(String userId, String requestId) {
+    var active = modelRegistryRepository.findActive().orElse(null);
+    long activeId = active == null ? 0L : active.id();
+
+    var c = canaryPolicyRepository.get("risk-model", "GLOBAL", "*").orElse(null);
+    if (c == null || !c.enabled() || c.rolloutPercent() <= 0) return activeId;
+
+    String key = (requestId != null && !requestId.isBlank()) ? requestId : userId;
+    int bucket = stableBucket(key);
+    if (bucket < c.rolloutPercent()) return c.modelId();
+    return activeId;
+  }
+
+  private boolean isCanarySelected(String userId, String requestId, long selectedModelId) {
+    var c = canaryPolicyRepository.get("risk-model", "GLOBAL", "*").orElse(null);
+    if (c == null || !c.enabled() || c.rolloutPercent() <= 0) return false;
+    return selectedModelId == c.modelId();
+  }
+
+  private int stableBucket(String key) {
+    int h = (key == null) ? 0 : key.hashCode();
+    h ^= (h >>> 16);
+    long u = h & 0xffffffffL;
+    return (int) (u % 100);
   }
 }

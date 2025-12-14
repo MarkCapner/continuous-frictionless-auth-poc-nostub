@@ -9,6 +9,7 @@ public class DecisionLogRow {
   public String tlsFp;
   public double behaviorScore;
   public double deviceScore;
+  public double tlsScore;
   public double contextScore;
   public double confidence;
   public String decision;

@@ -117,5 +117,4 @@ public class SessionFeatureRepository {
             return row;
         }, userId, limit);
     }
-
 }

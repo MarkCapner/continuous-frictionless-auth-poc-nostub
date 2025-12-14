@@ -20,10 +20,16 @@ public class ModelRegistryRepository {
       String version,
       byte[] bytes,
       String sha256,
-      OffsetDateTime createdAt
+      boolean active,
+      OffsetDateTime createdAt,
+      String kind,
+      String scopeType,
+      String scopeKey,
+      String metricsJson
   ) {}
 
   private final JdbcTemplate jdbcTemplate;
+
   private final RowMapper<ModelRecord> rowMapper = new RowMapper<>() {
     @Override
     public ModelRecord mapRow(ResultSet rs, int rowNum) throws SQLException {
@@ -34,32 +40,86 @@ public class ModelRegistryRepository {
           rs.getString("version"),
           rs.getBytes("bytes"),
           rs.getString("sha256"),
-          rs.getObject("created_at", OffsetDateTime.class)
+          rs.getBoolean("active"),
+          rs.getObject("created_at", OffsetDateTime.class),
+          rs.getString("kind"),
+          rs.getString("scope_type"),
+          rs.getString("scope_key"),
+          rs.getString("metrics_json")
       );
     }
   };
+
+  private static final String BASE_SELECT =
+      "SELECT id, name, format, version, bytes, sha256, active, created_at, " +
+          "COALESCE(kind,'risk-model') as kind, COALESCE(scope_type,'GLOBAL') as scope_type, COALESCE(scope_key,'*') as scope_key, " +
+          "COALESCE(metrics_json,'{}'::jsonb)::text as metrics_json " +
+          "FROM model_registry ";
 
   public ModelRegistryRepository(JdbcTemplate jdbcTemplate) {
     this.jdbcTemplate = jdbcTemplate;
   }
 
   public Optional<ModelRecord> findActive() {
-    List<ModelRecord> list = jdbcTemplate.query(
-        "SELECT id, name, format, version, bytes, sha256, created_at " +
-            "FROM model_registry WHERE active = true ORDER BY id DESC LIMIT 1",
+    List<ModelRecord> rows = jdbcTemplate.query(
+        BASE_SELECT + "WHERE active=true ORDER BY id DESC LIMIT 1",
         rowMapper
     );
-    return list.stream().findFirst();
+    return rows.stream().findFirst();
+  }
+
+  public Optional<ModelRecord> findById(long id) {
+    List<ModelRecord> rows = jdbcTemplate.query(
+        BASE_SELECT + "WHERE id=?",
+        rowMapper, id
+    );
+    return rows.stream().findFirst();
+  }
+
+  public List<ModelRecord> listRecent(String kind, String scopeType, String scopeKey, int limit) {
+    return jdbcTemplate.query(
+        BASE_SELECT +
+            "WHERE COALESCE(kind,'risk-model')=? AND COALESCE(scope_type,'GLOBAL')=? AND COALESCE(scope_key,'*')=? " +
+            "ORDER BY id DESC LIMIT ?",
+        rowMapper,
+        kind, scopeType, scopeKey, Math.min(limit, 500)
+    );
+  }
+
+  public Optional<ModelRecord> findActiveScoped(String kind, String scopeType, String scopeKey) {
+    List<ModelRecord> rows = jdbcTemplate.query(
+        BASE_SELECT +
+            "WHERE active=true AND COALESCE(kind,'risk-model')=? AND COALESCE(scope_type,'GLOBAL')=? AND COALESCE(scope_key,'*')=? " +
+            "ORDER BY id DESC LIMIT 1",
+        rowMapper,
+        kind, scopeType, scopeKey
+    );
+    return rows.stream().findFirst();
   }
 
   public void deactivateAll() {
-    jdbcTemplate.update("UPDATE model_registry SET active = false WHERE active = true");
+    jdbcTemplate.update("UPDATE model_registry SET active=false WHERE active=true");
   }
 
-  public void insert(String name, String format, String version, byte[] bytes, String sha256, boolean active) {
+  public void deactivateAllScoped(String kind, String scopeType, String scopeKey) {
     jdbcTemplate.update(
-        "INSERT INTO model_registry(name, format, version, bytes, sha256, active) VALUES (?,?,?,?,?,?)",
-        name, format, version, bytes, sha256, active
+        "UPDATE model_registry SET active=false WHERE active=true AND COALESCE(kind,'risk-model')=? AND COALESCE(scope_type,'GLOBAL')=? AND COALESCE(scope_key,'*')=?",
+        kind, scopeType, scopeKey
+    );
+  }
+
+  public void activateById(long id) {
+    deactivateAll();
+    jdbcTemplate.update("UPDATE model_registry SET active=true WHERE id=?", id);
+  }
+
+  public long insertReturningId(String name, String format, String version, byte[] bytes, String sha256, boolean active,
+                                String kind, String scopeType, String scopeKey, String metricsJson) {
+    return jdbcTemplate.queryForObject(
+        "INSERT INTO model_registry(name, format, version, bytes, sha256, active, kind, scope_type, scope_key, metrics_json) " +
+            "VALUES (?,?,?,?,?,?,?,?,?, ?::jsonb) RETURNING id",
+        Long.class,
+        name, format, version, bytes, sha256, active, kind, scopeType, scopeKey, metricsJson == null ? "{}" : metricsJson
     );
   }
 }

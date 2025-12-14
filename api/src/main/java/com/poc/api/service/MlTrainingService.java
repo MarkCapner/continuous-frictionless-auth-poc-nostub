@@ -1,6 +1,6 @@
 package com.poc.api.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.poc.api.ml.FeatureVectorSchema;
 import com.poc.api.ml.ModelProvider;
@@ -9,28 +9,19 @@ import com.poc.api.persistence.SessionFeatureRepository;
 import com.poc.api.persistence.SessionFeatureRow;
 import org.springframework.stereotype.Service;
 
-import jakarta.annotation.PostConstruct;
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.time.OffsetDateTime;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
-import java.util.Map;
+import java.time.Instant;
+import java.util.*;
 
-/**
- * EPIC 5: Training pipeline that turns persisted session_feature rows into
- * Tribuo training examples and updates the active in-memory model in ModelProvider,
- * while also recording metadata in the model_registry table.
- */
 @Service
 public class MlTrainingService {
+
+  public record TrainResult(long modelId, String version, Map<String,Object> metrics) {}
 
   private final SessionFeatureRepository sessionFeatureRepository;
   private final ModelRegistryRepository modelRegistryRepository;
   private final ModelProvider modelProvider;
-  private final ObjectMapper objectMapper = new ObjectMapper();
+  private final ObjectMapper om = new ObjectMapper();
 
   public MlTrainingService(SessionFeatureRepository sessionFeatureRepository,
                            ModelRegistryRepository modelRegistryRepository,
@@ -40,80 +31,86 @@ public class MlTrainingService {
     this.modelProvider = modelProvider;
   }
 
-  @PostConstruct
-  public void initialTrainIfPossible() {
-    // Best-effort training from any existing labeled rows.
-    retrainFromRecent(500);
+  public void retrainFromRecent(int limit) {
+    retrainFromRecentWithResult(limit);
   }
 
-  public void retrainFromRecent(int limit) {
-    List<SessionFeatureRow> rows = sessionFeatureRepository.findRecentWithLabel(limit);
+  public TrainResult retrainFromRecentWithResult(int limit) {
+    List<SessionFeatureRow> rows = sessionFeatureRepository.findRecentWithLabel(Math.min(limit, 2000));
     if (rows.isEmpty()) {
-      return;
+      return new TrainResult(0L, "none", Map.of("trained_examples", 0));
     }
 
     List<ModelProvider.TrainingExample> examples = new ArrayList<>();
     List<double[]> vectors = new ArrayList<>();
-    OffsetDateTime newest = null;
 
-    for (SessionFeatureRow row : rows) {
-      Map<String, Double> breakdown = parseBreakdown(row.featureVector);
-      if (breakdown == null || breakdown.isEmpty()) {
-        continue;
-      }
-      double[] v = FeatureVectorSchema.fromBreakdown(breakdown);
-      String label = row.label != null ? row.label : row.decision;
-      if (label == null) {
-        continue;
-      }
-      examples.add(new ModelProvider.TrainingExample(v, label));
+    for (SessionFeatureRow r : rows) {
+      double[] v = extractBase4(r.featureVector);
       vectors.add(v);
-      if (newest == null || row.occurredAt.isAfter(newest)) {
-        newest = row.occurredAt;
-      }
-    }
 
-    if (examples.isEmpty()) {
-      return;
+      boolean legit = "ALLOW".equalsIgnoreCase(r.decision);
+      examples.add(new ModelProvider.TrainingExample(v, legit));
     }
 
     modelProvider.train(examples, vectors);
-
-    // Record metadata in model_registry.
     String version = modelProvider.getModelVersion();
-    String bytesStr = "MODEL:" + version;
-    byte[] bytes = bytesStr.getBytes(StandardCharsets.UTF_8);
+
+    byte[] bytes = modelProvider.exportArtifactBytes();
     String sha256 = sha256(bytes);
 
     modelRegistryRepository.deactivateAll();
-    modelRegistryRepository.insert(
+    long modelId = modelRegistryRepository.insertReturningId(
         "behavior-risk-model",
-        "TRIBUO_LOGREG_IFOREST",
+        "JAVA_SERIALIZED_TRIBUO_LOGREG_IFOREST",
         version,
         bytes,
         sha256,
-        true
+        true,
+        "risk-model",
+        "GLOBAL",
+        "*",
+        json(Map.of("trained_examples", examples.size(), "trained_at", Instant.now().toString()))
     );
+
+    modelProvider.setActiveFromRegistry(modelId, bytes);
+
+    return new TrainResult(modelId, version, Map.of("trained_examples", examples.size(), "sha256", sha256));
   }
 
-  private Map<String, Double> parseBreakdown(String json) {
-    if (json == null || json.isBlank()) {
-      return null;
+  private double[] extractBase4(String featureVectorJson) {
+    // Default zeros
+    double device = 0, behavior = 0, tls = 0, context = 0;
+    if (featureVectorJson != null && !featureVectorJson.isBlank()) {
+      try {
+        JsonNode n = om.readTree(featureVectorJson);
+        // Accept either object {device_score:..} or array [..]
+        if (n.isObject()) {
+          device = n.path("device_score").asDouble(0);
+          behavior = n.path("behavior_score").asDouble(0);
+          tls = n.path("tls_score").asDouble(0);
+          context = n.path("context_score").asDouble(0);
+        } else if (n.isArray() && n.size() >= 4) {
+          device = n.get(0).asDouble(0);
+          behavior = n.get(1).asDouble(0);
+          tls = n.get(2).asDouble(0);
+          context = n.get(3).asDouble(0);
+        }
+      } catch (Exception ignore) {}
     }
-    try {
-      return objectMapper.readValue(json, new TypeReference<>() {});
-    } catch (Exception e) {
-      return null;
-    }
+    return FeatureVectorSchema.fromScores(device, behavior, tls, context);
+  }
+
+  private String json(Map<String,Object> m) {
+    try { return om.writeValueAsString(m); } catch (Exception e) { return "{}"; }
   }
 
   private static String sha256(byte[] bytes) {
     try {
-      MessageDigest digest = MessageDigest.getInstance("SHA-256");
-      byte[] hash = digest.digest(bytes);
-      return Base64.getEncoder().encodeToString(hash);
-    } catch (NoSuchAlgorithmException e) {
-      throw new IllegalStateException("SHA-256 not available", e);
+      MessageDigest md = MessageDigest.getInstance("SHA-256");
+      byte[] dig = md.digest(bytes == null ? new byte[0] : bytes);
+      return Base64.getEncoder().encodeToString(dig);
+    } catch (Exception e) {
+      return "";
     }
   }
 }
