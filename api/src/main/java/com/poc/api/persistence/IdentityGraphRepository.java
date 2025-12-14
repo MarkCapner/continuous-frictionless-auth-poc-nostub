@@ -209,4 +209,40 @@ public class IdentityGraphRepository {
     Number n = kh.getKey();
     return n != null ? n.longValue() : 0L;
   }
+
+
+public Optional<IdentityNodeRow> findNodeById(long id) {
+  String sql = "SELECT id, node_type, natural_key, display_label, meta_json, created_at, last_seen FROM identity_node WHERE id = ?";
+  var list = jdbc.query(sql, (rs, rowNum) -> {
+    IdentityNodeRow r = new IdentityNodeRow();
+    r.id = rs.getLong("id");
+    r.nodeType = IdentityNodeType.valueOf(rs.getString("node_type"));
+    r.naturalKey = rs.getString("natural_key");
+    r.displayLabel = rs.getString("display_label");
+    r.metaJson = rs.getString("meta_json");
+    r.createdAt = rs.getObject("created_at", OffsetDateTime.class);
+    r.lastSeen = rs.getObject("last_seen", OffsetDateTime.class);
+    return r;
+  }, id);
+  return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
+}
+
+
+public List<IdentityNodeRow> listNodesByIds(List<Long> ids) {
+  if (ids == null || ids.isEmpty()) return List.of();
+  String in = String.join(",", ids.stream().map(x -> "?").toList());
+  String sql = "SELECT id, node_type, natural_key, display_label, meta_json, created_at, last_seen FROM identity_node WHERE id IN (" + in + ")";
+  Object[] args = ids.toArray();
+  return jdbc.query(sql, (rs, rowNum) -> {
+    IdentityNodeRow r = new IdentityNodeRow();
+    r.id = rs.getLong("id");
+    r.nodeType = IdentityNodeType.valueOf(rs.getString("node_type"));
+    r.naturalKey = rs.getString("natural_key");
+    r.displayLabel = rs.getString("display_label");
+    r.metaJson = rs.getString("meta_json");
+    r.createdAt = rs.getObject("created_at", OffsetDateTime.class);
+    r.lastSeen = rs.getObject("last_seen", OffsetDateTime.class);
+    return r;
+  }, args);
+}
 }

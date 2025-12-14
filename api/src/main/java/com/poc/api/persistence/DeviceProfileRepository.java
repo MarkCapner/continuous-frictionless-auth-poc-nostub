@@ -237,4 +237,28 @@ public class DeviceProfileRepository {
     }, limit);
   }
 
+
+
+public List<DeviceProfile> listAfterId(long afterId, int limit) {
+  String sql = "SELECT * FROM device_profile WHERE id > ? ORDER BY id ASC LIMIT ?";
+  return jdbc.query(sql, (rs, rowNum) -> {
+    DeviceProfile d = new DeviceProfile();
+    d.id = rs.getLong("id");
+    d.userId = rs.getString("user_id");
+    d.tlsFp = rs.getString("tls_fp");
+    d.uaFamily = rs.getString("ua_family");
+    d.uaVersion = rs.getString("ua_version");
+    d.screenW = rs.getInt("screen_w");
+    d.screenH = rs.getInt("screen_h");
+    d.pixelRatio = rs.getDouble("pixel_ratio");
+    d.tzOffset = rs.getShort("tz_offset");
+    d.canvasHash = rs.getString("canvas_hash");
+    d.webglHash = rs.getString("webgl_hash");
+    d.firstSeen = rs.getObject("first_seen", OffsetDateTime.class);
+    d.lastSeen = rs.getObject("last_seen", OffsetDateTime.class);
+    d.seenCount = rs.getLong("seen_count");
+    d.lastCountry = rs.getString("last_country");
+    return d;
+  }, afterId, limit);
+}
 }

@@ -9,9 +9,11 @@ import org.springframework.stereotype.Service;
 public class DeviceProfileService {
 
   private final DeviceProfileRepository repo;
+  private final IdentityGraphService identityGraph;
 
-  public DeviceProfileService(DeviceProfileRepository repo) {
+  public DeviceProfileService(DeviceProfileRepository repo, IdentityGraphService identityGraph) {
     this.repo = repo;
+    this.identityGraph = identityGraph;
   }
 
   public DeviceProfile upsert(String userId, String tlsFp, String country, Telemetry.Device d) {
@@ -43,6 +45,13 @@ public class DeviceProfileService {
     p.webglHash = d.webgl_hash();
     p.lastCountry = country;
 
-    return repo.upsert(p);
+    DeviceProfile saved = repo.upsert(p);
+
+    // EPIC 10.2: best-effort identity graph observation
+    if (identityGraph != null) {
+      try { identityGraph.observeDeviceProfile(saved); } catch (Exception ignored) {}
+    }
+
+    return saved;
   }
 }
