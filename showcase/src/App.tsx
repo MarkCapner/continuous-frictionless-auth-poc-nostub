@@ -14,6 +14,7 @@ import { AdminBehaviorView } from "./components/AdminBehaviorView";
 import { AdminMlView } from "./components/AdminMlView";
 import { AdminUsersView } from "./components/AdminUsersView";
 import { AdminAnalyticsView } from "./components/AdminAnalyticsView";
+import { AdminPolicyView } from "./components/AdminPolicyView";
 import { ShowcaseDashboard } from "./components/ShowcaseDashboard";
 import { TrustSnapshotPanel } from "./components/TrustSnapshotPanel";
 import { Shell, type NavItem } from "./ui/Shell";
@@ -25,6 +26,7 @@ type ViewKey =
   | "admin-behavior"
   | "admin-users"
   | "admin-analytics"
+  | "admin-policy"
   | "admin-ml";
 
 function App() {
@@ -47,6 +49,7 @@ function App() {
       { key: "admin-behavior", label: "Behaviour baselines", section: "Admin" },
       { key: "admin-users", label: "Users", section: "Admin" },
       { key: "admin-analytics", label: "Analytics", section: "Admin" },
+      { key: "admin-policy", label: "Policy", section: "Admin" },
       { key: "admin-ml", label: "ML model", section: "Admin" }
     ],
     []
@@ -70,6 +73,8 @@ function App() {
         return { title: "Admin · Users", subtitle: "User and device summaries." };
       case "admin-analytics":
         return { title: "Admin · Analytics", subtitle: "Session stats, risk breakdown and trends." };
+      case "admin-policy":
+        return { title: "Admin · Policy", subtitle: "Create and manage policy rules (scope, conditions, actions)." };
       case "admin-ml":
       default:
         return { title: "Admin · ML", subtitle: "Model status and re-training controls." };
@@ -242,6 +247,8 @@ function App() {
         <AdminUsersView />
       ) : view === "admin-analytics" ? (
         <AdminAnalyticsView />
+      ) : view === "admin-policy" ? (
+        <AdminPolicyView />
       ) : (
         <AdminMlView />
       )}

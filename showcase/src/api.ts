@@ -543,3 +543,115 @@ export async function fetchRecentPolicyMatches(limit: number = 50): Promise<Poli
   }
   return (await res.json()) as PolicyMatchEvent[];
 }
+
+// -------------------------
+// EPIC 13: Policy admin (CRUD)
+// -------------------------
+
+export type PolicyScope = "GLOBAL" | "TENANT" | "USER" | string;
+
+export interface PolicyRule {
+  id: number;
+  scope: PolicyScope;
+  scopeRef: string | null;
+  priority: number;
+  enabled: boolean;
+  conditionJson: any;
+  actionJson: any;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PolicyRuleUpsert {
+  scope: PolicyScope;
+  scopeRef?: string | null;
+  priority: number;
+  enabled: boolean;
+  conditionJson: any;
+  actionJson: any;
+  description?: string | null;
+}
+
+export async function fetchPolicyRules(): Promise<PolicyRule[]> {
+  const res = await fetch(`${API_BASE}/admin/policy`);
+  if (!res.ok) throw new Error(`Failed to fetch policies: ${res.status}`);
+  return (await res.json()) as PolicyRule[];
+}
+
+export async function fetchPolicyRule(id: number): Promise<PolicyRule> {
+  const res = await fetch(`${API_BASE}/admin/policy/${id}`);
+  if (!res.ok) throw new Error(`Failed to fetch policy ${id}: ${res.status}`);
+  return (await res.json()) as PolicyRule;
+}
+
+// -------------------------
+// EPIC 13: Policy management
+// -------------------------
+
+export type PolicyScope = "GLOBAL" | "TENANT" | "USER" | string;
+
+export interface PolicyRule {
+  id?: number;
+  scope: PolicyScope;
+  scope_ref?: string | null;
+  priority: number;
+  enabled: boolean;
+  condition_json: any;
+  action_json: any;
+  description?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export async function listPolicyRules(): Promise<PolicyRule[]> {
+  const res = await fetch(`${API_BASE}/admin/policy`);
+  if (!res.ok) throw new Error(`Failed to list policies: ${res.status}`);
+  return (await res.json()) as PolicyRule[];
+}
+
+export async function getPolicyRule(id: number): Promise<PolicyRule> {
+  const res = await fetch(`${API_BASE}/admin/policy/${id}`);
+  if (!res.ok) throw new Error(`Failed to load policy: ${res.status}`);
+  return (await res.json()) as PolicyRule;
+}
+
+export async function createPolicyRule(rule: PolicyRule): Promise<PolicyRule> {
+  const res = await fetch(`${API_BASE}/admin/policy`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    body: JSON.stringify(rule)
+  });
+  if (!res.ok) throw new Error(`Failed to create policy: ${res.status}`);
+  return (await res.json()) as PolicyRule;
+}
+
+export async function updatePolicyRule(id: number, rule: PolicyRule): Promise<PolicyRule> {
+  const res = await fetch(`${API_BASE}/admin/policy/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    body: JSON.stringify(rule)
+  });
+  if (!res.ok) throw new Error(`Failed to update policy: ${res.status}`);
+  return (await res.json()) as PolicyRule;
+}
+
+export async function setPolicyEnabled(id: number, enabled: boolean): Promise<void> {
+  const params = new URLSearchParams({ enabled: String(enabled) });
+  const res = await fetch(`${API_BASE}/admin/policy/${id}/enabled?${params.toString()}`, { method: "PATCH" });
+  if (!res.ok) throw new Error(`Failed to toggle policy: ${res.status}`);
+}
+
+export async function deletePolicyRule(id: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/admin/policy/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`Failed to delete policy: ${res.status}`);
+}
+
+export async function fetchEffectivePolicies(tenantId?: string, userId?: string): Promise<PolicyRule[]> {
+  const params = new URLSearchParams();
+  if (tenantId) params.set("tenant_id", tenantId);
+  if (userId) params.set("user_id", userId);
+  const res = await fetch(`${API_BASE}/admin/policy/effective?${params.toString()}`);
+  if (!res.ok) throw new Error(`Failed to load effective policies: ${res.status}`);
+  return (await res.json()) as PolicyRule[];
+}
