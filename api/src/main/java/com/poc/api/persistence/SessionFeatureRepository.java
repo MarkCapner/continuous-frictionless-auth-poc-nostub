@@ -1,12 +1,33 @@
 package com.poc.api.persistence;
 
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+
+import java.util.Optional;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class SessionFeatureRepository {
 
     private final JdbcTemplate jdbcTemplate;
+
+    private final RowMapper<SessionFeatureRow> mapper = (rs, rowNum) -> {
+        SessionFeatureRow row = new SessionFeatureRow();
+        row.id = rs.getLong("id");
+        row.occurredAt = rs.getObject("occurred_at", java.time.OffsetDateTime.class);
+        row.userId = rs.getString("user_id");
+        row.requestId = rs.getString("request_id");
+        row.tlsFp = rs.getString("tls_fp");
+        row.deviceJson = rs.getString("device_json");
+        row.behaviorJson = rs.getString("behavior_json");
+        row.contextJson = rs.getString("context_json");
+        row.featureVector = rs.getString("feature_vector");
+        row.decision = rs.getString("decision");
+        row.confidence = rs.getDouble("confidence");
+        row.label = rs.getString("label");
+        return row;
+    };
 
     public SessionFeatureRepository(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
@@ -117,4 +138,23 @@ public class SessionFeatureRepository {
             return row;
         }, userId, limit);
     }
+public Optional<SessionFeatureRow> findByRequestId(String requestId) {
+    try {
+        return Optional.ofNullable(jdbcTemplate.queryForObject(
+                """
+                SELECT id, occurred_at, user_id, request_id, tls_fp, device_json, behavior_json, context_json,
+                       feature_vector, decision, confidence, label
+                FROM session_feature
+                WHERE request_id = ?
+                ORDER BY occurred_at DESC
+                LIMIT 1
+                """,
+                mapper,
+                requestId
+        ));
+    } catch (EmptyResultDataAccessException ex) {
+        return Optional.empty();
+    }
+}
+
 }
