@@ -573,6 +573,42 @@ export interface PolicyRuleUpsert {
   description?: string | null;
 }
 
+export interface PolicySimulationRequest {
+  sessionId: string;
+  tenantId?: string | null;
+  userId?: string | null;
+  conditionJson: any;
+  actionJson: any;
+}
+
+export interface PolicySimulationResult {
+  sessionId: string;
+  userId: string;
+  beforeDecision: string;
+  beforeConfidence: number;
+  draftMatched: boolean;
+  afterDecision: string;
+  afterConfidence: number;
+  draftReason: string | null;
+  baselineMatched: boolean;
+  baselinePolicyId: number | null;
+  baselinePolicyDescription: string | null;
+}
+
+export async function simulatePolicy(req: PolicySimulationRequest): Promise<PolicySimulationResult> {
+  const res = await fetch(`${API_BASE}/admin/policy/simulate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`Policy simulate failed: ${res.status} ${t}`);
+  }
+  return (await res.json()) as PolicySimulationResult;
+}
+
+
 export async function fetchPolicyRules(): Promise<PolicyRule[]> {
   const res = await fetch(`${API_BASE}/admin/policy`);
   if (!res.ok) throw new Error(`Failed to fetch policies: ${res.status}`);
@@ -585,66 +621,35 @@ export async function fetchPolicyRule(id: number): Promise<PolicyRule> {
   return (await res.json()) as PolicyRule;
 }
 
-// -------------------------
-// EPIC 13: Policy management
-// -------------------------
-
-export type PolicyScope = "GLOBAL" | "TENANT" | "USER" | string;
-
-export interface PolicyRule {
-  id?: number;
-  scope: PolicyScope;
-  scope_ref?: string | null;
-  priority: number;
-  enabled: boolean;
-  condition_json: any;
-  action_json: any;
-  description?: string | null;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export async function listPolicyRules(): Promise<PolicyRule[]> {
-  const res = await fetch(`${API_BASE}/admin/policy`);
-  if (!res.ok) throw new Error(`Failed to list policies: ${res.status}`);
-  return (await res.json()) as PolicyRule[];
-}
-
-export async function getPolicyRule(id: number): Promise<PolicyRule> {
-  const res = await fetch(`${API_BASE}/admin/policy/${id}`);
-  if (!res.ok) throw new Error(`Failed to load policy: ${res.status}`);
-  return (await res.json()) as PolicyRule;
-}
-
-export async function createPolicyRule(rule: PolicyRule): Promise<PolicyRule> {
+export async function createPolicyRule(req: PolicyRuleUpsert): Promise<PolicyRule> {
   const res = await fetch(`${API_BASE}/admin/policy`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Accept": "application/json" },
-    body: JSON.stringify(rule)
+    body: JSON.stringify(req)
   });
   if (!res.ok) throw new Error(`Failed to create policy: ${res.status}`);
   return (await res.json()) as PolicyRule;
 }
 
-export async function updatePolicyRule(id: number, rule: PolicyRule): Promise<PolicyRule> {
+export async function updatePolicyRule(id: number, req: PolicyRuleUpsert): Promise<PolicyRule> {
   const res = await fetch(`${API_BASE}/admin/policy/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json", "Accept": "application/json" },
-    body: JSON.stringify(rule)
+    body: JSON.stringify(req)
   });
-  if (!res.ok) throw new Error(`Failed to update policy: ${res.status}`);
+  if (!res.ok) throw new Error(`Failed to update policy ${id}: ${res.status}`);
   return (await res.json()) as PolicyRule;
 }
 
 export async function setPolicyEnabled(id: number, enabled: boolean): Promise<void> {
   const params = new URLSearchParams({ enabled: String(enabled) });
   const res = await fetch(`${API_BASE}/admin/policy/${id}/enabled?${params.toString()}`, { method: "PATCH" });
-  if (!res.ok) throw new Error(`Failed to toggle policy: ${res.status}`);
+  if (!res.ok) throw new Error(`Failed to update policy enabled: ${res.status}`);
 }
 
 export async function deletePolicyRule(id: number): Promise<void> {
   const res = await fetch(`${API_BASE}/admin/policy/${id}`, { method: "DELETE" });
-  if (!res.ok) throw new Error(`Failed to delete policy: ${res.status}`);
+  if (!res.ok) throw new Error(`Failed to delete policy ${id}: ${res.status}`);
 }
 
 export async function fetchEffectivePolicies(tenantId?: string, userId?: string): Promise<PolicyRule[]> {
@@ -652,6 +657,20 @@ export async function fetchEffectivePolicies(tenantId?: string, userId?: string)
   if (tenantId) params.set("tenant_id", tenantId);
   if (userId) params.set("user_id", userId);
   const res = await fetch(`${API_BASE}/admin/policy/effective?${params.toString()}`);
-  if (!res.ok) throw new Error(`Failed to load effective policies: ${res.status}`);
+  if (!res.ok) throw new Error(`Failed to fetch effective policies: ${res.status}`);
   return (await res.json()) as PolicyRule[];
 }
+
+// -------------------------
+
+// ---- Compatibility aliases (AdminPolicyView expects these names) ----
+
+export async function listPolicyRules(): Promise<PolicyRule[]> {
+  return fetchPolicyRules();
+}
+
+export const listPolicies = listPolicyRules;
+export const createPolicy = createPolicyRule;
+export const updatePolicy = updatePolicyRule;
+export const deletePolicy = deletePolicyRule;
+export const getEffectivePolicies = fetchEffectivePolicies;
