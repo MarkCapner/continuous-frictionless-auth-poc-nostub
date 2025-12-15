@@ -157,4 +157,39 @@ public Optional<SessionFeatureRow> findByRequestId(String requestId) {
     }
 }
 
+    /**
+     * Finds the most recent prior session for this user that looks "trusted" enough to act as a baseline.
+     *
+     * Note: This is intentionally a simple heuristic for PoC transparency features.
+     */
+    public Optional<SessionFeatureRow> findLastTrustedBefore(String userId,
+                                                            java.time.OffsetDateTime before,
+                                                            double minConfidence) {
+        try {
+            return Optional.ofNullable(jdbcTemplate.queryForObject(
+                    """
+                    SELECT id, occurred_at, user_id, request_id, tls_fp,
+                           device_json::text AS device_json,
+                           behavior_json::text AS behavior_json,
+                           context_json::text AS context_json,
+                           feature_vector::text AS feature_vector,
+                           decision, confidence, label
+                    FROM session_feature
+                    WHERE user_id = ?
+                      AND occurred_at < ?
+                      AND decision = 'ALLOW'
+                      AND confidence >= ?
+                    ORDER BY occurred_at DESC
+                    LIMIT 1
+                    """,
+                    mapper,
+                    userId,
+                    before,
+                    minConfidence
+            ));
+        } catch (EmptyResultDataAccessException ex) {
+            return Optional.empty();
+        }
+    }
+
 }

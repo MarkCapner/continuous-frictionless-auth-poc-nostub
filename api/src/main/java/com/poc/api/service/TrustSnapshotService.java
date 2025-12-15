@@ -17,13 +17,16 @@ public class TrustSnapshotService {
     private final SessionFeatureRepository sessionFeatureRepository;
     private final ObjectMapper objectMapper;
     private final TrustExplanationService trustExplanationService;
+    private final TrustDiffService trustDiffService;
 
     public TrustSnapshotService(SessionFeatureRepository sessionFeatureRepository,
                                ObjectMapper objectMapper,
-                               TrustExplanationService trustExplanationService) {
+                               TrustExplanationService trustExplanationService,
+                               TrustDiffService trustDiffService) {
         this.sessionFeatureRepository = sessionFeatureRepository;
         this.objectMapper = objectMapper;
         this.trustExplanationService = trustExplanationService;
+        this.trustDiffService = trustDiffService;
     }
 
     public Optional<TrustSnapshot> buildForSession(String sessionId) {
@@ -44,6 +47,23 @@ public class TrustSnapshotService {
         // EPIC 12.2: deterministic, plain-language narrative + per-signal explanations.
         snap.riskSummary = exp.riskSummary();
         snap.signals = exp.signals();
+
+        // EPIC 12.3: compute a small, user-safe "what changed since last time" list.
+        // Baseline heuristic: last ALLOW session with high confidence.
+        var baselineOpt = sessionFeatureRepository.findLastTrustedBefore(
+                row.userId,
+                row.occurredAt != null ? row.occurredAt : java.time.OffsetDateTime.now(),
+                0.80
+        );
+
+        if (baselineOpt.isPresent()) {
+            var baseline = baselineOpt.get();
+            snap.baselineSessionId = baseline.requestId;
+            snap.changes = trustDiffService.diff(row, baseline);
+        } else {
+            snap.baselineSessionId = null;
+            snap.changes = java.util.List.of();
+        }
         return Optional.of(snap);
     }
 
