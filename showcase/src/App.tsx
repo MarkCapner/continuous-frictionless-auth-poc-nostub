@@ -15,6 +15,7 @@ import { AdminMlView } from "./components/AdminMlView";
 import { AdminUsersView } from "./components/AdminUsersView";
 import { AdminAnalyticsView } from "./components/AdminAnalyticsView";
 import { ShowcaseDashboard } from "./components/ShowcaseDashboard";
+import { TrustSnapshotPanel } from "./components/TrustSnapshotPanel";
 import { Shell, type NavItem } from "./ui/Shell";
 
 type ViewKey =
@@ -165,6 +166,7 @@ function App() {
           </div>
 
           {decision ? (
+            <>
             <div className="card">
               <div className="cardTitle">
                 <h3>Decision details</h3>
@@ -218,6 +220,16 @@ function App() {
                 </div>
               </div>
             </div>
+
+            <TrustSnapshotPanel
+              sessionId={
+                (decision as any).session_id ??
+                (decision as any).sessionId ??
+                (decision as any).request_id ??
+                (decision as any).requestId
+              }
+            />
+          </>
           ) : null}
         </div>
       ) : view === "showcase-dashboard" ? (

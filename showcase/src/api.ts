@@ -451,3 +451,40 @@ export async function fetchTlsFpOverview(tlsFp: string): Promise<TlsFpOverview> 
   }
   return (await res.json()) as TlsFpOverview;
 }
+
+
+export type TrustSignalStatus = "OK" | "WARN" | "RISK" | "INFO";
+
+export interface TrustSignal {
+  category: "DEVICE" | "BEHAVIOUR" | "TLS" | "CONTEXT" | string;
+  label: string;
+  status: TrustSignalStatus;
+  explanation: string;
+}
+
+export interface TrustDiffItem {
+  dimension: "DEVICE" | "BEHAVIOUR" | "TLS" | "CONTEXT" | string;
+  change: string;
+  severity: "LOW" | "MEDIUM" | "HIGH" | string;
+}
+
+export interface TrustSnapshot {
+  sessionId: string;
+  decision: string;
+  confidence: number;
+  riskSummary: string;
+  signals: TrustSignal[];
+  changes?: TrustDiffItem[];
+  baselineSessionId?: string | null;
+}
+
+export async function getTrustSnapshot(sessionId: string): Promise<TrustSnapshot> {
+  const res = await fetch(`${API_BASE}/trust/session/${encodeURIComponent(sessionId)}`, {
+    method: "GET",
+    headers: { "Accept": "application/json" }
+  });
+  if (!res.ok) {
+    throw new Error(`API error: ${res.status}`);
+  }
+  return await res.json();
+}
