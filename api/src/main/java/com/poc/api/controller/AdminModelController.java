@@ -87,7 +87,7 @@ public class AdminModelController {
     }
 
     @GetMapping("/scorecards/{id}")
-    public ModelScorecardRepository.ScorecardRow getScorecard(@PathVariable long id) {
+    public ModelScorecardRepository.ScorecardRow getScorecard(@PathVariable("id") long id) {
         return scorecards.get(id).orElseThrow();
     }
 

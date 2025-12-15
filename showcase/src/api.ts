@@ -470,18 +470,54 @@ export interface TrustDiffItem {
 
 export interface TrustSnapshot {
   sessionId: string;
+  userId?: string;
   decision: string;
   confidence: number;
   riskSummary: string;
   signals: TrustSignal[];
+  consentGranted?: boolean;
+  baselineResetAt?: string | null;
   changes?: TrustDiffItem[];
   baselineSessionId?: string | null;
+}
+
+export interface TrustUserSettings {
+  userId: string;
+  consentGranted: boolean;
+  consentUpdatedAt?: string;
+  baselineResetAt?: string | null;
+  baselineResetReason?: string | null;
 }
 
 export async function getTrustSnapshot(sessionId: string): Promise<TrustSnapshot> {
   const res = await fetch(`${API_BASE}/trust/session/${encodeURIComponent(sessionId)}`, {
     method: "GET",
     headers: { "Accept": "application/json" }
+  });
+  if (!res.ok) {
+    throw new Error(`API error: ${res.status}`);
+  }
+  return await res.json();
+}
+
+
+export async function postTrustConsent(userId: string, consentGranted: boolean): Promise<TrustUserSettings> {
+  const res = await fetch(`${API_BASE}/trust/consent`, {
+    method: "POST",
+    headers: { "Accept": "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify({ userId, consentGranted })
+  });
+  if (!res.ok) {
+    throw new Error(`API error: ${res.status}`);
+  }
+  return await res.json();
+}
+
+export async function postTrustReset(userId: string, reason?: string): Promise<TrustUserSettings> {
+  const res = await fetch(`${API_BASE}/trust/reset`, {
+    method: "POST",
+    headers: { "Accept": "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify({ userId, reason })
   });
   if (!res.ok) {
     throw new Error(`API error: ${res.status}`);

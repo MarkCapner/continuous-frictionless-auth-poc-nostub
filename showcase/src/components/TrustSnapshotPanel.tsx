@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { TrustSnapshot, TrustSignal, TrustDiffItem } from "../api";
-import { getTrustSnapshot } from "../api";
+import { getTrustSnapshot, postTrustConsent, postTrustReset } from "../api";
 
 function statusChip(status: string): { label: string; className: string } {
   const s = (status || "").toUpperCase();
@@ -17,12 +17,32 @@ function severityLabel(sev: string): string {
   return "Low";
 }
 
+function ButtonLike(props: { onClick?: () => void; disabled?: boolean; children: any }) {
+  return (
+    <button
+      onClick={props.onClick}
+      disabled={props.disabled}
+      style={{
+        padding: "8px 10px",
+        borderRadius: 10,
+        border: "1px solid rgba(255,255,255,0.14)",
+        background: "rgba(0,0,0,0.25)",
+        color: "rgba(255,255,255,0.92)",
+        cursor: props.disabled ? "not-allowed" : "pointer"
+      }}
+    >
+      {props.children}
+    </button>
+  );
+}
+
 export function TrustSnapshotPanel(props: { sessionId?: string; compact?: boolean }) {
   const { sessionId, compact } = props;
 
   const [snapshot, setSnapshot] = useState<TrustSnapshot | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const canLoad = useMemo(() => !!sessionId && sessionId.trim().length > 0, [sessionId]);
 
@@ -46,6 +66,43 @@ export function TrustSnapshotPanel(props: { sessionId?: string; compact?: boolea
       cancelled = true;
     };
   }, [canLoad, sessionId]);
+
+
+  async function toggleConsent() {
+    if (!snapshot?.userId) return;
+    const next = !(snapshot.consentGranted ?? true);
+    setSaving(true);
+    setErr(null);
+    try {
+      const updated = await postTrustConsent(snapshot.userId, next);
+      setSnapshot({
+        ...snapshot,
+        consentGranted: updated.consentGranted,
+        baselineResetAt: updated.baselineResetAt ?? snapshot.baselineResetAt
+      });
+    } catch (e: any) {
+      setErr(e?.message ?? "Failed to update consent");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function resetTrust() {
+    if (!snapshot?.userId) return;
+    setSaving(true);
+    setErr(null);
+    try {
+      const updated = await postTrustReset(snapshot.userId, "User requested a trust reset");
+      setSnapshot({
+        ...snapshot,
+        baselineResetAt: updated.baselineResetAt ?? new Date().toISOString()
+      });
+    } catch (e: any) {
+      setErr(e?.message ?? "Failed to reset trust");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   if (!canLoad) {
     return (
@@ -96,6 +153,23 @@ export function TrustSnapshotPanel(props: { sessionId?: string; compact?: boolea
       <div className="cardTitle">
         <h3>Trust snapshot</h3>
         <span className="chip">{snapshot.decision}</span>
+      </div>
+
+      <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 10, flexWrap: "wrap" }}>
+        <span className="chip">
+          consent={(snapshot.consentGranted ?? true) ? "on" : "off"}
+        </span>
+        <ButtonLike onClick={toggleConsent} disabled={saving || !snapshot.userId}>
+          {(snapshot.consentGranted ?? true) ? "Withdraw consent" : "Give consent"}
+        </ButtonLike>
+        <ButtonLike onClick={resetTrust} disabled={saving || !snapshot.userId}>
+          Reset trust
+        </ButtonLike>
+        {snapshot.baselineResetAt ? (
+          <span className="muted" style={{ fontSize: 12 }}>
+            baseline reset at {new Date(snapshot.baselineResetAt).toLocaleString()}
+          </span>
+        ) : null}
       </div>
 
       <div style={{ marginTop: 8 }}>

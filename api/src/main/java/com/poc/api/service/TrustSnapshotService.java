@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.poc.api.model.TrustSnapshot;
 import com.poc.api.persistence.SessionFeatureRepository;
+import com.poc.api.persistence.TrustUserSettingsRepository;
 import com.poc.api.persistence.SessionFeatureRow;
 import org.springframework.stereotype.Service;
 
@@ -18,15 +19,18 @@ public class TrustSnapshotService {
     private final ObjectMapper objectMapper;
     private final TrustExplanationService trustExplanationService;
     private final TrustDiffService trustDiffService;
+    private final TrustUserSettingsRepository trustUserSettingsRepository;
 
     public TrustSnapshotService(SessionFeatureRepository sessionFeatureRepository,
                                ObjectMapper objectMapper,
                                TrustExplanationService trustExplanationService,
-                               TrustDiffService trustDiffService) {
+                               TrustDiffService trustDiffService,
+                              TrustUserSettingsRepository trustUserSettingsRepository) {
         this.sessionFeatureRepository = sessionFeatureRepository;
         this.objectMapper = objectMapper;
         this.trustExplanationService = trustExplanationService;
         this.trustDiffService = trustDiffService;
+        this.trustUserSettingsRepository = trustUserSettingsRepository;
     }
 
     public Optional<TrustSnapshot> buildForSession(String sessionId) {
@@ -35,28 +39,38 @@ public class TrustSnapshotService {
 
         SessionFeatureRow row = rowOpt.get();
 
-        Map<String, Object> fv = safeParseJsonMap(row.featureVector);
+                var settingsOpt = trustUserSettingsRepository.findByUserId(row.userId);
+Map<String, Object> fv = safeParseJsonMap(row.featureVector);
 
         TrustExplanationService.Explanation exp = trustExplanationService.explain(row.decision, row.confidence, fv);
 
         TrustSnapshot snap = new TrustSnapshot();
         snap.sessionId = sessionId;
+        snap.userId = row.userId;
         snap.decision = row.decision;
         snap.confidence = row.confidence;
 
         // EPIC 12.2: deterministic, plain-language narrative + per-signal explanations.
         snap.riskSummary = exp.riskSummary();
         snap.signals = exp.signals();
+        if (settingsOpt.isPresent()) {
+            var s = settingsOpt.get();
+            snap.consentGranted = s.consentGranted;
+            snap.baselineResetAt = s.baselineResetAt;
+        } else {
+            snap.consentGranted = true;
+            snap.baselineResetAt = null;
+        }
+
 
         // EPIC 12.3: compute a small, user-safe "what changed since last time" list.
         // Baseline heuristic: last ALLOW session with high confidence.
-        var baselineOpt = sessionFeatureRepository.findLastTrustedBefore(
-                row.userId,
-                row.occurredAt != null ? row.occurredAt : java.time.OffsetDateTime.now(),
-                0.80
-        );
+        var beforeTs = row.occurredAt != null ? row.occurredAt : java.time.OffsetDateTime.now();
+        var baselineOpt = (snap.baselineResetAt != null)
+                ? sessionFeatureRepository.findLastTrustedBeforeAfter(row.userId, beforeTs, snap.baselineResetAt, 0.80)
+                : sessionFeatureRepository.findLastTrustedBefore(row.userId, beforeTs, 0.80);
 
-        if (baselineOpt.isPresent()) {
+if (baselineOpt.isPresent()) {
             var baseline = baselineOpt.get();
             snap.baselineSessionId = baseline.requestId;
             snap.changes = trustDiffService.diff(row, baseline);

@@ -192,4 +192,38 @@ public Optional<SessionFeatureRow> findByRequestId(String requestId) {
         }
     }
 
+
+    public Optional<SessionFeatureRow> findLastTrustedBeforeAfter(String userId,
+                                                                 java.time.OffsetDateTime before,
+                                                                 java.time.OffsetDateTime afterOrEqual,
+                                                                 double minConfidence) {
+        try {
+            return Optional.ofNullable(jdbcTemplate.queryForObject(
+                    """
+                    SELECT id, occurred_at, user_id, request_id, tls_fp,
+                           device_json::text AS device_json,
+                           behavior_json::text AS behavior_json,
+                           context_json::text AS context_json,
+                           feature_vector::text AS feature_vector,
+                           decision, confidence, label
+                    FROM session_feature
+                    WHERE user_id = ?
+                      AND occurred_at < ?
+                      AND occurred_at >= ?
+                      AND decision = 'ALLOW'
+                      AND confidence >= ?
+                    ORDER BY occurred_at DESC
+                    LIMIT 1
+                    """,
+                    mapper,
+                    userId,
+                    before,
+                    afterOrEqual,
+                    minConfidence
+            ));
+        } catch (EmptyResultDataAccessException ex) {
+            return Optional.empty();
+        }
+    }
+
 }
