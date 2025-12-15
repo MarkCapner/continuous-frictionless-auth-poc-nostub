@@ -138,7 +138,8 @@ async function computeWebglHash() {
   }
 }
 
-export function snapshotTelemetry(userIdHint?: string): TelemetryPayload {
+// EPIC 13.6: include tenant_id in context for per-tenant policy evaluation.
+export function snapshotTelemetry(userIdHint?: string, tenantId?: string): TelemetryPayload {
   const nav = window.navigator as any;
 
   const device: DeviceTelemetry = {
@@ -198,6 +199,10 @@ export function snapshotTelemetry(userIdHint?: string): TelemetryPayload {
     vpn: chaosState.vpn,
     high_risk_action: chaosState.highRiskAction
   };
+
+  if (tenantId && tenantId.trim().length > 0) {
+    context["tenant_id"] = tenantId.trim();
+  }
 
   return {
     user_id_hint: userIdHint,

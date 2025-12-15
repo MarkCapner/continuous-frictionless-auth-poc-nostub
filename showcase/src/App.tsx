@@ -35,6 +35,8 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [demoUser, setDemoUser] = useState<string>("demo-user");
+  // EPIC 13.6: optional tenant id used for per-tenant policy overrides.
+  const [demoTenant, setDemoTenant] = useState<string>("demo-tenant");
   const [view, setView] = useState<ViewKey>("showcase");
 
   useEffect(() => {
@@ -86,7 +88,8 @@ function App() {
     setLoading(true);
     try {
       const userHint = demoUser.trim() || "demo-user";
-      const payload = snapshotTelemetry(userHint);
+      const tenantHint = demoTenant.trim() || undefined;
+      const payload = snapshotTelemetry(userHint, tenantHint);
       setTelemetry(payload);
       const resp = await postProfileCheck(payload);
       setDecision(resp);
@@ -134,6 +137,20 @@ function App() {
                 />
                 <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
                   Sent as <span className="mono">user_id_hint</span> so you can compare devices per handle.
+                </div>
+
+                <div style={{ height: 10 }} />
+
+                <span className="muted">Tenant (optional)</span>
+                <input
+                  className="input"
+                  type="text"
+                  value={demoTenant}
+                  onChange={(e) => setDemoTenant(e.target.value)}
+                  placeholder="e.g. demo-tenant, corp-uk"
+                />
+                <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+                  Sent as <span className="mono">context.tenant_id</span> to enable per-tenant policy overrides.
                 </div>
               </label>
 

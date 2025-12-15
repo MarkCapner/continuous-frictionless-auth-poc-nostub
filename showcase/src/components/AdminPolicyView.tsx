@@ -96,6 +96,8 @@ export function AdminPolicyView() {
   const [effective, setEffective] = useState<PolicyRule[] | null>(null);
 
   const [simulateSessionId, setSimulateSessionId] = useState("");
+  const [simulateTenant, setSimulateTenant] = useState("");
+  const [simulateUser, setSimulateUser] = useState("");
   const [simulateResult, setSimulateResult] = useState<PolicySimulationResult | null>(null);
   const [simulateError, setSimulateError] = useState<string | null>(null);
 
@@ -199,6 +201,8 @@ export function AdminPolicyView() {
 
     const req: PolicySimulationRequest = {
       sessionId,
+      tenantId: simulateTenant.trim() || undefined,
+      userId: simulateUser.trim() || undefined,
       conditionJson: up.value.conditionJson,
       actionJson: up.value.actionJson
     };
@@ -417,6 +421,20 @@ export function AdminPolicyView() {
                 placeholder="sessionId / request_id"
                 value={simulateSessionId}
                 onChange={(e) => setSimulateSessionId(e.target.value)}
+              />
+              <input
+                className="input"
+                style={{ minWidth: 200 }}
+                placeholder="tenantId (optional)"
+                value={simulateTenant}
+                onChange={(e) => setSimulateTenant(e.target.value)}
+              />
+              <input
+                className="input"
+                style={{ minWidth: 200 }}
+                placeholder="userId (optional)"
+                value={simulateUser}
+                onChange={(e) => setSimulateUser(e.target.value)}
               />
               <button className="btn" onClick={runSimulate}>
                 Simulate
