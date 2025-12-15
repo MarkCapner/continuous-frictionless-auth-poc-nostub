@@ -10,6 +10,8 @@ import com.poc.api.persistence.DeviceProfile;
 import com.poc.api.persistence.SessionFeatureRepository;
 import com.poc.api.persistence.ModelCanaryPolicyRepository;
 import com.poc.api.persistence.ModelRegistryRepository;
+import com.poc.api.service.policy.PolicyEngine;
+import com.poc.api.service.policy.PolicyOutcome;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -30,6 +32,7 @@ public class RiskService {
   private final ModelProvider modelProvider;
   private final ModelCanaryPolicyRepository canaryPolicyRepository;
   private final ModelRegistryRepository modelRegistryRepository;
+  private final PolicyEngine policyEngine;
   private final SessionFeatureRepository sessionFeatureRepository;
   private final DecisionLogRepository decisionLogRepository;
   private final AccountSharingHeuristics accountSharingHeuristics;
@@ -48,7 +51,8 @@ public class RiskService {
                      DecisionLogRepository decisionLogRepository,
                      AccountSharingHeuristics accountSharingHeuristics,
                      UserReputationService userReputationService,
-                     TlsFamilyService tlsFamilyService) {
+                     TlsFamilyService tlsFamilyService,
+                     PolicyEngine policyEngine) {
     this.deviceProfileService = deviceProfileService;
     this.behaviorStatsService = behaviorStatsService;
     this.featureBuilder = featureBuilder;
@@ -61,6 +65,7 @@ public class RiskService {
     this.accountSharingHeuristics = accountSharingHeuristics;
     this.userReputationService = userReputationService;
     this.tlsFamilyService = tlsFamilyService;
+    this.policyEngine = policyEngine;
   }
 
   public DecisionResponse score(String tlsFp, String tlsMeta, Telemetry telemetry, String ip, String reqId) {
@@ -68,9 +73,12 @@ public class RiskService {
     String sessionId = (reqId != null && !reqId.isBlank()) ? reqId : UUID.randomUUID().toString();
 
     String country = null;
+    String tenantId = null;
     boolean vpn = false;
     boolean highRiskAction = false;
     if (telemetry.context() != null) {
+      Object t = telemetry.context().get("tenant_id");
+      if (t instanceof String s) tenantId = s;
       Object c = telemetry.context().get("country");
       if (c instanceof String s) country = s;
       Object v = telemetry.context().get("vpn");
@@ -125,6 +133,63 @@ double anomalyScore = modelProvider.anomalyScoreWithModelId(
     RulesEngine.Decision decisionEnum = rulesEngine.apply(fctx, pLegit);
     String decision = decisionEnum.name();
 
+    // EPIC 6: user-level intelligence & reputation (used both for breakdown and policy context)
+    var reputation = userReputationService.evaluate(userId);
+
+
+    // EPIC 13.2: evaluate governable policy rules (after ML inference + rules engine, before final response).
+    String policyReason = null;
+    PolicyOutcome policyOutcome = null;
+    try {
+      Map<String, Object> pctx = new LinkedHashMap<>();
+      pctx.put("decision", decision);
+      pctx.put("confidence", pLegit);
+      pctx.put("device.new", fctx.newDevice);
+      pctx.put("tls.new", fctx.newTlsFingerprint);
+      pctx.put("vpn", vpn);
+      if (country != null) pctx.put("country", country);
+
+      // Common numeric scores (for numeric threshold policies)
+      pctx.put("scores.device", features.deviceScore());
+      pctx.put("scores.behaviour", features.behaviorScore());
+      pctx.put("scores.tls", features.tlsScore());
+      pctx.put("scores.context", features.contextScore());
+      pctx.put("scores.anomaly", anomalyScore);
+
+      // TLS family drift/stability
+      pctx.put("tls.family_drift", tlsObs.familyDrift());
+
+      // User reputation signals
+      pctx.put("user.trust_score", reputation.trustScore());
+      pctx.put("user.account_sharing_risk", reputation.accountSharingRisk());
+      pctx.put("user.device_count", reputation.deviceCount());
+      pctx.put("user.tls_fp_count", reputation.tlsFingerprintCount());
+      pctx.put("user.country_count", reputation.countryCount());
+      pctx.put("user.sessions_30d", reputation.sessionsLast30d());
+
+      policyOutcome = policyEngine.evaluate(tenantId, userId, PolicyEngine.context(pctx));
+      if (policyOutcome.matched() && policyOutcome.action() != null) {
+        var act = policyOutcome.action();
+        if (act.confidenceCap() != null) {
+          double cap = act.confidenceCap();
+          if (cap < 0) cap = 0;
+          if (cap > 1) cap = 1;
+          if (cap < pLegit) pLegit = cap;
+        }
+        if (act.decisionOverride() != null && !act.decisionOverride().isBlank()) {
+          decision = act.decisionOverride().trim();
+        }
+        if (act.reason() != null && !act.reason().isBlank()) {
+          policyReason = act.reason();
+        } else if (policyOutcome.description() != null && !policyOutcome.description().isBlank()) {
+          policyReason = policyOutcome.description();
+        }
+      }
+    } catch (Exception ignored) {
+      // Policy errors must not fail the PoC scoring path.
+    }
+
+
     Map<String, Double> breakdown = Map.of(
         "device_score", features.deviceScore(),
         "behavior_score", features.behaviorScore(),
@@ -138,6 +203,13 @@ double anomalyScore = modelProvider.anomalyScoreWithModelId(
     enrichedBreakdown.put("ml_anomaly_score", anomalyScore);
     enrichedBreakdown.put("model_id_used", (double) selectedModelId);
     enrichedBreakdown.put("canary_enabled", isCanarySelected(userId, sessionId, selectedModelId) ? 1.0 : 0.0);
+
+    if (policyOutcome != null && policyOutcome.matched()) {
+      enrichedBreakdown.put("policy_matched", 1.0);
+      enrichedBreakdown.put("policy_id", policyOutcome.policyId() != null ? (double) policyOutcome.policyId() : 0.0);
+    } else {
+      enrichedBreakdown.put("policy_matched", 0.0);
+    }
 
     behaviorRes.zScores().forEach((featureName, z) -> {
       enrichedBreakdown.put("behavior_z_" + featureName, z);
@@ -163,8 +235,7 @@ double anomalyScore = modelProvider.anomalyScoreWithModelId(
 
     // EPIC 6: user-level intelligence & reputation
     var sharing = accountSharingHeuristics.evaluate(userId);
-    var reputation = userReputationService.evaluate(userId);
-
+    
     enrichedBreakdown.put("user_trust_score", reputation.trustScore());
     enrichedBreakdown.put("user_account_sharing_risk", reputation.accountSharingRisk());
     enrichedBreakdown.put("user_device_count", (double) reputation.deviceCount());
@@ -193,16 +264,20 @@ double anomalyScore = modelProvider.anomalyScoreWithModelId(
     decisionLogRepository.insert(sessionId, userId, tlsFp != null ? tlsFp : "none",
         features.behaviorScore(), features.deviceScore(), features.contextScore(), pLegit, decision);
 
-    var reasons = List.of(
-        String.format("Rules decision: %s", decision),
-        String.format("Model p(legit)=%.3f", pLegit),
-        String.format("ML anomaly score=%.3f", anomalyScore),
-        String.format("Behavior similarity score %.2f", features.behaviorScore()),
-        String.format("User trust score=%.2f (devices=%d, countries=%d)",
-            reputation.trustScore(), reputation.deviceCount(), reputation.countryCount()),
-        String.format("Account sharing risk=%.2f (TLS fingerprints=%d)",
-            reputation.accountSharingRisk(), reputation.tlsFingerprintCount())
-    );
+	    var reasons = new java.util.ArrayList<String>(List.of(
+	        String.format("Rules decision: %s", decision),
+	        String.format("Model p(legit)=%.3f", pLegit),
+	        String.format("ML anomaly score=%.3f", anomalyScore),
+	        String.format("Behavior similarity score %.2f", features.behaviorScore()),
+	        String.format("User trust score=%.2f (devices=%d, countries=%d)",
+	            reputation.trustScore(), reputation.deviceCount(), reputation.countryCount()),
+	        String.format("Account sharing risk=%.2f (TLS fingerprints=%d)",
+	            reputation.accountSharingRisk(), reputation.tlsFingerprintCount())
+	    ));
+
+	    if (policyReason != null && !policyReason.isBlank()) {
+	      reasons.add(0, "Policy: " + policyReason);
+	    }
 
     return new DecisionResponse(
         decision,
