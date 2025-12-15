@@ -251,6 +251,7 @@ double anomalyScore = modelProvider.anomalyScoreWithModelId(
       // Persist numeric feature_vector plus a few string fields for explainability.
       Map<String, Object> fv = new LinkedHashMap<>();
       fv.putAll(enrichedBreakdown);
+      if (policyOutcome != null && policyOutcome.matched()) fv.put("policy", policyOutcome.asExplainMap());
       fv.put("tls_family_id", tlsObs.familyId());
       fv.put("tls_family_key", tlsObs.familyKey());
       String featureVectorJson = objectMapper.writeValueAsString(fv);
@@ -279,6 +280,8 @@ double anomalyScore = modelProvider.anomalyScoreWithModelId(
 	      reasons.add(0, "Policy: " + policyReason);
 	    }
 
+    Map<String, Object> policyExplain = (policyOutcome != null) ? policyOutcome.asExplainMap() : java.util.Collections.emptyMap();
+
     return new DecisionResponse(
         decision,
         pLegit,
@@ -287,7 +290,8 @@ double anomalyScore = modelProvider.anomalyScoreWithModelId(
         sessionId,
         tlsFp != null ? tlsFp : "none",
         tlsMeta,
-        modelProvider.getModelVersion()
+        modelProvider.getModelVersion(),
+        policyExplain
     );
   }
 

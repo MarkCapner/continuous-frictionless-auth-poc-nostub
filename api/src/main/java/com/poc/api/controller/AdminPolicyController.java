@@ -12,9 +12,13 @@ import java.util.List;
 public class AdminPolicyController {
 
     private final PolicyRuleService service;
+    private final com.poc.api.persistence.SessionFeatureRepository sessionFeatureRepository;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
-    public AdminPolicyController(PolicyRuleService service) {
+    public AdminPolicyController(PolicyRuleService service, com.poc.api.persistence.SessionFeatureRepository sessionFeatureRepository, com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
         this.service = service;
+        this.sessionFeatureRepository = sessionFeatureRepository;
+        this.objectMapper = objectMapper;
     }
 
     @GetMapping
@@ -67,6 +71,30 @@ public class AdminPolicyController {
         return service.resolveEffectivePolicies(tenantId, userId);
     }
 
+
+    @GetMapping("/matches")
+    public java.util.List<com.poc.api.model.PolicyMatchEvent> matches(@RequestParam(value = "limit", defaultValue = "50") int limit) {
+        int capped = Math.max(1, Math.min(limit, 200));
+        var rows = sessionFeatureRepository.findRecentPolicyMatches(capped);
+        java.util.List<com.poc.api.model.PolicyMatchEvent> out = new java.util.ArrayList<>(rows.size());
+        for (var r : rows) {
+            java.util.Map<String,Object> policy = java.util.Collections.emptyMap();
+            try {
+                if (r.policyJson != null && !r.policyJson.isBlank()) {
+                    policy = objectMapper.readValue(r.policyJson, java.util.Map.class);
+                }
+            } catch (Exception ignored) {}
+            out.add(new com.poc.api.model.PolicyMatchEvent(
+                r.requestId,
+                r.userId,
+                r.decision,
+                r.confidence,
+                r.occurredAt,
+                policy
+            ));
+        }
+        return out;
+    }
     static class ErrorResponse {
         public final String error;
         ErrorResponse(String error) { this.error = error; }

@@ -6,6 +6,7 @@ import org.springframework.jdbc.core.RowMapper;
 
 import java.util.Optional;
 import org.springframework.stereotype.Repository;
+import com.poc.api.persistence.PolicyMatchRow;
 
 @Repository
 public class SessionFeatureRepository {
@@ -226,4 +227,25 @@ public Optional<SessionFeatureRow> findByRequestId(String requestId) {
         }
     }
 
+
+    public java.util.List<PolicyMatchRow> findRecentPolicyMatches(int limit) {
+        String sql = """
+          SELECT occurred_at, request_id, user_id, decision, confidence,
+                 feature_vector->'policy'::text AS policy_json
+          FROM session_feature
+          WHERE (feature_vector->>'policy_matched')::double precision = 1
+          ORDER BY occurred_at DESC
+          LIMIT ?
+        """;
+        return jdbcTemplate.query(sql, (rs, rowNum) -> {
+            PolicyMatchRow r = new PolicyMatchRow();
+            r.occurredAt = rs.getObject("occurred_at", java.time.OffsetDateTime.class);
+            r.requestId = rs.getString("request_id");
+            r.userId = rs.getString("user_id");
+            r.decision = rs.getString("decision");
+            r.confidence = rs.getDouble("confidence");
+            r.policyJson = rs.getString("policy_json");
+            return r;
+        }, limit);
+    }
 }

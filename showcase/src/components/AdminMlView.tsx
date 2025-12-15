@@ -44,6 +44,7 @@ export function AdminMlView() {
   const [registry, setRegistry] = useState<any[]>([]);
   const [canary, setCanary] = useState<any | null>(null);
   const [changes, setChanges] = useState<any[]>([]);
+  const [policyMatches, setPolicyMatches] = useState<any[]>([]);
   const [canaryModelId, setCanaryModelId] = useState<string>("0");
   const [canaryPercent, setCanaryPercent] = useState<string>("5");
   const [err, setErr] = useState<string | null>(null);
@@ -57,6 +58,7 @@ export function AdminMlView() {
     setRegistry(await getJson<any[]>(`${API_BASE}/admin/model/registry?kind=risk-model&scopeType=GLOBAL&scopeKey=*&limit=50`));
     setCanary(await getJson<any>(`${API_BASE}/admin/model/canary?scopeType=GLOBAL&scopeKey=*`));
     setChanges(await getJson<any[]>(`${API_BASE}/admin/model/changes?scopeType=GLOBAL&scopeKey=*&limit=100`));
+    setPolicyMatches(await getJson<any[]>(`${API_BASE}/admin/policy/matches?limit=25`));
   }
 
   useEffect(() => {
@@ -337,6 +339,42 @@ export function AdminMlView() {
         </table>
       </div>
 
+
+      <div style={sectionStyle}>
+        <h3 style={{ marginTop: 0 }}>Recent policy matches</h3>
+        <div className="muted" style={{ marginBottom: 10 }}>
+          Sessions where a policy rule matched and influenced (or could have influenced) the final decision.
+        </div>
+        <table style={tableStyle}>
+          <thead>
+            <tr>
+              <th style={thtd}>time</th>
+              <th style={thtd}>session</th>
+              <th style={thtd}>user</th>
+              <th style={thtd}>decision</th>
+              <th style={thtd}>confidence</th>
+              <th style={thtd}>policy</th>
+              <th style={thtd}>reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            {policyMatches.map((p: any, idx: number) => (
+              <tr key={idx}>
+                <td style={thtd}>{p.occurred_at ?? ""}</td>
+                <td style={thtd}>{p.session_id ?? ""}</td>
+                <td style={thtd}>{p.user_id ?? ""}</td>
+                <td style={thtd}>{p.decision ?? ""}</td>
+                <td style={thtd}>{typeof p.confidence === "number" ? p.confidence.toFixed(3) : p.confidence ?? ""}</td>
+                <td style={thtd}>{p.policy?.policy_id ?? p.policy?.policyId ?? ""}</td>
+                <td style={thtd}>{p.policy?.reason ?? p.policy?.description ?? ""}</td>
+              </tr>
+            ))}
+            {policyMatches.length === 0 && (
+              <tr><td style={thtd} colSpan={7}>No policy matches yet.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
       <div style={sectionStyle}>
         <h3 style={{ marginTop: 0 }}>Retrain jobs</h3>
         <table style={tableStyle}>

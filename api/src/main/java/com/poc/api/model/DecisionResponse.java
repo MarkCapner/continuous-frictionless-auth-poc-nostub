@@ -11,5 +11,6 @@ public record DecisionResponse(
     String session_id,
     String tls_fp,
     String tls_meta,
-    String model_version
+    String model_version,
+    Map<String, Object> policy
 ) {}

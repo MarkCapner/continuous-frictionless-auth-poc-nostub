@@ -47,6 +47,7 @@ export interface DecisionResponse {
   tls_fp?: string;
   tls_meta?: string;
   model_version?: string;
+  policy?: Record<string, any>;
 }
 
 export interface SessionSummary {
@@ -523,4 +524,22 @@ export async function postTrustReset(userId: string, reason?: string): Promise<T
     throw new Error(`API error: ${res.status}`);
   }
   return await res.json();
+}
+
+export interface PolicyMatchEvent {
+  session_id: string;
+  user_id: string;
+  decision: string;
+  confidence: number;
+  occurred_at: string;
+  policy: Record<string, any>;
+}
+
+export async function fetchRecentPolicyMatches(limit: number = 50): Promise<PolicyMatchEvent[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const res = await fetch(`${API_BASE}/admin/policy/matches?${params.toString()}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch policy matches: ${res.status}`);
+  }
+  return (await res.json()) as PolicyMatchEvent[];
 }
