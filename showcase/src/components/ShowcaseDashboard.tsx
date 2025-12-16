@@ -4,6 +4,7 @@ import { BehaviorInspector } from "./BehaviorInspector";
 import { RiskTimeline } from "./RiskTimeline";
 import { DeviceHistoryCharts } from "./DeviceHistoryCharts";
 import { TlsFpVisualizer } from "./TlsFpVisualizer";
+import { useSessionContext } from "../state/session";
 
 /**
  * EPIC 8 – Showcase Dashboard shell.
@@ -19,7 +20,7 @@ import { TlsFpVisualizer } from "./TlsFpVisualizer";
  * in later mini-epics.
  */
 export function ShowcaseDashboard() {
-  const [userHint, setUserHint] = useState<string>("demo-user");
+  const { userHint, setUserHint } = useSessionContext();
   const [tlsFpHint, setTlsFpHint] = useState<string>("");
 
   return (
@@ -44,8 +45,7 @@ export function ShowcaseDashboard() {
             />
           </label>
           <p style={userHintHelpStyle}>
-            This value will be used by all panels when we hook them up to the backend
-            (<code>user_hint</code> query parameter).
+            Global selector — updates Showcase, Analyst and Admin views.
           </p>
         </div>
       </section>

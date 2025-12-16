@@ -13,9 +13,10 @@ export function Shell(props: {
   subtitle?: string;
   items: NavItem[];
   topRight?: React.ReactNode;
+  stickyHeader?: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const { title, subtitle, items, topRight, children } = props;
+  const { title, subtitle, items, topRight, stickyHeader, children } = props;
 
   let lastSection: string | undefined;
 
@@ -59,6 +60,8 @@ export function Shell(props: {
           </div>
           <div>{topRight}</div>
         </div>
+
+        {stickyHeader ? <div className="stickyHeader">{stickyHeader}</div> : null}
         <div className="page">
           <div className="container">{children}</div>
         </div>

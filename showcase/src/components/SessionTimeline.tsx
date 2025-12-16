@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { SessionSummary, TrustSnapshot, TrustSignal } from "../api";
 import { fetchSessions, getTrustSnapshot } from "../api";
 import { TrustSnapshotPanel } from "./TrustSnapshotPanel";
+import { useSessionContext } from "../state/session";
 
 interface SessionTimelineProps {
   userHint: string;
@@ -20,7 +21,8 @@ export function SessionTimeline({ userHint, limit = 20 }: SessionTimelineProps) 
   const [loading, setLoading] = useState(false);
 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const { selectedSessionId, setSelectedSessionId } = useSessionContext();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const [snapshots, setSnapshots] = useState<Record<string, TrustSnapshot | null>>({});
   const [snapshotErrors, setSnapshotErrors] = useState<Record<string, string>>({});
@@ -144,6 +146,7 @@ export function SessionTimeline({ userHint, limit = 20 }: SessionTimelineProps) 
           const chip = decisionChip(s.decision);
           const sid = (s.sessionId || "").toString();
           const hovered = hoveredId === sid;
+          const active = selectedSessionId === sid;
 
           const snapshot = snapshots[sid];
           const snapErr = snapshotErrors[sid];
@@ -151,7 +154,7 @@ export function SessionTimeline({ userHint, limit = 20 }: SessionTimelineProps) 
           return (
             <li
               key={s.id}
-              style={itemStyle}
+              style={{ ...itemStyle, background: active ? "rgba(34,211,238,0.10)" : (itemStyle as any).background }}
               onMouseEnter={() => {
                 // Small delay to avoid spamming fetches when moving the mouse
                 if (hoverTimer.current) window.clearTimeout(hoverTimer.current);
@@ -164,7 +167,10 @@ export function SessionTimeline({ userHint, limit = 20 }: SessionTimelineProps) 
                 if (hoverTimer.current) window.clearTimeout(hoverTimer.current);
                 setHoveredId(null);
               }}
-              onClick={() => setSelectedId((prev) => (prev === sid ? null : sid))}
+              onClick={() => {
+                setSelectedSessionId(sid);
+                setExpandedId((prev) => (prev === sid ? null : sid));
+              }}
               title="Click to expand the full trust snapshot"
             >
               <div style={metaStyle}>
@@ -221,7 +227,7 @@ export function SessionTimeline({ userHint, limit = 20 }: SessionTimelineProps) 
                 </div>
               ) : null}
 
-              {selectedId === sid ? (
+              {expandedId === sid ? (
                 <div style={{ marginTop: 12 }}>
                   <TrustSnapshotPanel sessionId={sid} />
                 </div>

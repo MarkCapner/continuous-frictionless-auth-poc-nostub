@@ -168,6 +168,26 @@ code, pre {
   backdrop-filter: blur(8px);
 }
 
+/* Sticky cross-view header (selected session risk summary) */
+.stickyHeader {
+  position: sticky;
+  top: 0;
+  z-index: 25;
+}
+
+.riskStickyBar {
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(10px);
+  padding: 12px 22px;
+}
+
+.riskStickyRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
 .topbarTitle {
   display: flex;
   flex-direction: column;

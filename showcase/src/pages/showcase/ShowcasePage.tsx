@@ -12,23 +12,31 @@ import { TrustSnapshotPanel } from "../../components/TrustSnapshotPanel";
 import { UsersOverview } from "../../components/UsersOverview";
 import { JsonOptIn } from "../../ui/JsonOptIn";
 import { ExpandablePanel } from "../../ui/ExpandablePanel";
+import { useSessionContext } from "../../state/session";
 
 export function ShowcasePage(props: {
   onDecisionChanged?: (decision: DecisionResponse | null) => void;
 }) {
   const { onDecisionChanged } = props;
 
+  const { userHint: globalUserHint, setUserHint: setGlobalUserHint, setSelectedSessionId } = useSessionContext();
+
   const [telemetry, setTelemetry] = useState<TelemetryPayload | null>(null);
   const [decision, setDecision] = useState<DecisionResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [demoUser, setDemoUser] = useState<string>("demo-user");
+  const [demoUser, setDemoUser] = useState<string>(globalUserHint || "demo-user");
   // EPIC 13.6: optional tenant id used for per-tenant policy overrides.
   const [demoTenant, setDemoTenant] = useState<string>("demo-tenant");
 
   useEffect(() => {
     startProfiler();
   }, []);
+
+  useEffect(() => {
+    // Keep local input in sync if the global selector changes elsewhere
+    setDemoUser(globalUserHint || "demo-user");
+  }, [globalUserHint]);
 
   useEffect(() => {
     onDecisionChanged?.(decision);
@@ -39,11 +47,13 @@ export function ShowcasePage(props: {
     setLoading(true);
     try {
       const userHint = demoUser.trim() || "demo-user";
+      setGlobalUserHint(userHint);
       const tenantHint = demoTenant.trim() || undefined;
       const payload = snapshotTelemetry(userHint, tenantHint);
       setTelemetry(payload);
       const resp = await postProfileCheck(payload);
       setDecision(resp);
+      if (resp?.session_id) setSelectedSessionId(resp.session_id);
     } catch (e: any) {
       setError(e?.message ?? String(e));
     } finally {
@@ -68,7 +78,10 @@ export function ShowcasePage(props: {
               className="input"
               type="text"
               value={demoUser}
-              onChange={(e) => setDemoUser(e.target.value)}
+              onChange={(e) => {
+                setDemoUser(e.target.value);
+                setGlobalUserHint(e.target.value);
+              }}
               placeholder="e.g. mark-demo, alice-laptop"
             />
             <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>

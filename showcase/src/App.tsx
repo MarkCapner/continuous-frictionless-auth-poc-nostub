@@ -8,6 +8,8 @@ import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
 import { AdminAnalyticsPage } from "./pages/admin/AdminAnalyticsPage";
 import { AdminPolicyPage } from "./pages/admin/AdminPolicyPage";
 import { AdminMlOpsPage } from "./pages/admin/AdminMlOpsPage";
+import { GlobalSessionSelector } from "./ui/GlobalSessionSelector";
+import { StickyRiskHeader } from "./ui/StickyRiskHeader";
 
 type Header = { title: string; subtitle?: string };
 
@@ -58,7 +60,13 @@ export default function App() {
   ];
 
   return (
-    <Shell title={`Continuous Frictionless Auth · ${header.title}`} subtitle={header.subtitle} items={navItems}>
+    <Shell
+      title={`Continuous Frictionless Auth · ${header.title}`}
+      subtitle={header.subtitle}
+      items={navItems}
+      topRight={<GlobalSessionSelector />}
+      stickyHeader={<StickyRiskHeader />}
+    >
       <Routes>
         {/* Tier 1: Showcase (default) */}
         <Route path="/" element={<Navigate to="/showcase" replace />} />
