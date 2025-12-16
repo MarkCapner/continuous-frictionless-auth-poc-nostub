@@ -13,5 +13,8 @@ public class DecisionLogRow {
   public double contextScore;
   public double confidence;
   public String decision;
+  public String featureContributionsJson;
+  public String topPositiveContributorsJson;
+  public String topNegativeContributorsJson;
   public OffsetDateTime createdAt;
 }
