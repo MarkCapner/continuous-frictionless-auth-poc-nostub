@@ -164,12 +164,16 @@ public class AdminPolicyController {
 
             Object d = action.get("decision");
             if (d instanceof String s && !s.isBlank()) {
+                Object rr = action.get("reason");
+                if (!(rr instanceof String rsn) || rsn.isBlank()) {
+                    return ResponseEntity.badRequest().body(Map.of("error","action.reason is required when action.decision is present"));
+                }
                 afterDecision = s.trim();
             }
             Object cap = action.get("confidence_cap");
             if (cap instanceof Number n) {
                 double c = n.doubleValue();
-                if (!Double.isNaN(c) && c >= 0.0 && c <= 1.0) {
+                if (!Double.isNaN(c) && c > 0.0 && c <= 1.0) {
                     afterConfidence = Math.min(afterConfidence, c);
                 }
             }

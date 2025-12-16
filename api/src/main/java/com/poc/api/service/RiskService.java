@@ -154,6 +154,7 @@ double anomalyScore = modelProvider.anomalyScoreWithModelId(
       pctx.put("scores.behaviour", features.behaviorScore());
       pctx.put("scores.tls", features.tlsScore());
       pctx.put("scores.context", features.contextScore());
+      pctx.put("scores.p_legit", pLegit);
       pctx.put("scores.anomaly", anomalyScore);
 
       // TLS family drift/stability

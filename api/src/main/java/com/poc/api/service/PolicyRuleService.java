@@ -1,5 +1,6 @@
 package com.poc.api.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.poc.api.model.PolicyRule;
 import com.poc.api.model.PolicyScope;
@@ -9,8 +10,16 @@ import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
+/**
+ * EPIC 13 — Policy Engine & Controls
+ *  - 13.1 storage + scope precedence
+ *  - 13.7 guardrails validation hooks (create/update time)
+ */
 @Service
 public class PolicyRuleService {
 
@@ -26,20 +35,21 @@ public class PolicyRuleService {
         return repo.listAll();
     }
 
-    public Optional<PolicyRule> findById(long id) {
-        return repo.findById(id);
+    public Optional<PolicyRule> get(long id) {
+        return repo.get(id);
     }
 
     public long create(PolicyRule rule) {
-        validate(rule);
         normalise(rule);
-        return repo.insert(rule);
+        validate(rule);
+        return repo.create(rule);
     }
 
     public void update(long id, PolicyRule rule) {
-        validate(rule);
+        rule.setId(id);
         normalise(rule);
-        repo.update(id, rule);
+        validate(rule);
+        repo.update(rule);
     }
 
     public void setEnabled(long id, boolean enabled) {
@@ -73,8 +83,19 @@ public class PolicyRuleService {
         if (rule.getScope() == PolicyScope.GLOBAL) {
             rule.setScopeRef(null);
         }
+        // Ensure scope is uppercase if it came from loose JSON binding.
+        if (rule.getScope() != null) {
+            rule.setScope(PolicyScope.valueOf(rule.getScope().name().toUpperCase(Locale.ROOT)));
+        }
     }
 
+    /**
+     * EPIC 13.7 — Guardrails:
+     *  - conditionJson/actionJson must be valid JSON
+     *  - action.decision must be ALLOW/STEP_UP/BLOCK if present
+     *  - action.reason required when decision override present
+     *  - action.confidence_cap must be (0,1] if present
+     */
     private void validate(PolicyRule rule) {
         if (rule.getScope() == null) {
             throw new IllegalArgumentException("scope is required");
@@ -89,16 +110,56 @@ public class PolicyRuleService {
             throw new IllegalArgumentException("actionJson is required");
         }
 
-        // Validate JSON (cheap & deterministic)
+        JsonNode cond;
+        JsonNode action;
         try {
-            mapper.readTree(rule.getConditionJson());
+            cond = mapper.readTree(rule.getConditionJson());
         } catch (Exception e) {
             throw new IllegalArgumentException("conditionJson must be valid JSON");
         }
         try {
-            mapper.readTree(rule.getActionJson());
+            action = mapper.readTree(rule.getActionJson());
         } catch (Exception e) {
             throw new IllegalArgumentException("actionJson must be valid JSON");
+        }
+
+        // Minimal shape check: condition/action should be objects
+        if (!cond.isObject()) {
+            throw new IllegalArgumentException("conditionJson must be a JSON object");
+        }
+        if (!action.isObject()) {
+            throw new IllegalArgumentException("actionJson must be a JSON object");
+        }
+
+        // action.decision guard
+        JsonNode decisionNode = action.get("decision");
+        if (decisionNode != null && !decisionNode.isNull()) {
+            String d = decisionNode.asText("").trim().toUpperCase(Locale.ROOT);
+            if (!Set.of("ALLOW", "STEP_UP", "BLOCK").contains(d)) {
+                throw new IllegalArgumentException("action.decision must be one of ALLOW, STEP_UP, BLOCK");
+            }
+            JsonNode reasonNode = action.get("reason");
+            if (reasonNode == null || reasonNode.asText("").isBlank()) {
+                throw new IllegalArgumentException("action.reason is required when action.decision is present");
+            }
+        }
+
+        // action.confidence_cap guard
+        JsonNode capNode = action.get("confidence_cap");
+        if (capNode != null && !capNode.isNull()) {
+            double v;
+            if (capNode.isNumber()) {
+                v = capNode.doubleValue();
+            } else {
+                try {
+                    v = Double.parseDouble(capNode.asText());
+                } catch (Exception e) {
+                    throw new IllegalArgumentException("action.confidence_cap must be a number");
+                }
+            }
+            if (!(v > 0.0 && v <= 1.0)) {
+                throw new IllegalArgumentException("action.confidence_cap must be in (0,1]");
+            }
         }
     }
 }

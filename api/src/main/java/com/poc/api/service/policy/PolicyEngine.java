@@ -26,6 +26,10 @@ public class PolicyEngine {
     private final PolicyRuleService policyRuleService;
     private final ObjectMapper objectMapper;
 
+    // EPIC 13.7 guardrails
+    private static final double BLOCK_MIN_RISK = 0.85;
+    private static final double ALLOW_MAX_RISK = 0.55;
+
     public PolicyEngine(PolicyRuleService policyRuleService, ObjectMapper objectMapper) {
         this.policyRuleService = policyRuleService;
         this.objectMapper = objectMapper;
@@ -50,8 +54,9 @@ public class PolicyEngine {
             PolicyAction parsed = PolicyAction.from(action);
             if (parsed == null) continue;
 
-            return PolicyOutcome.matched(rule.getId(), rule.getDescription(), parsed);
-        }
+            PolicyAction guarded = applyGuardrails(parsed, ctx.values());
+            return PolicyOutcome.matched(rule.getId(), rule.getDescription(), guarded);
+}
 
         return PolicyOutcome.noMatch();
     }
