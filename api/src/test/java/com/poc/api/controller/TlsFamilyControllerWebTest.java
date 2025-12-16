@@ -1,6 +1,7 @@
 package com.poc.api.controller;
 
-import com.poc.api.showcase.controller.TlsFamilyController;
+import com.poc.api.admin.controller.AdminTlsFamiliesController;
+import com.poc.api.showcase.controller.ShowcaseTlsFamilyController;
 import com.poc.api.showcase.persistence.TlsFamilyRepository;
 import com.poc.api.showcase.service.TlsFamilyBackfillService;
 import org.junit.jupiter.api.Test;
@@ -19,7 +20,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(controllers = TlsFamilyController.class)
+@WebMvcTest(controllers = {ShowcaseTlsFamilyController.class, AdminTlsFamiliesController.class})
 @TestPropertySource(properties = "poc.admin.token=test-admin-token")
 class TlsFamilyControllerWebTest {
 

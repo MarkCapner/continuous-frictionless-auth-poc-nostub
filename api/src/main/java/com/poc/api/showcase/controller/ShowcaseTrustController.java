@@ -7,21 +7,16 @@ import com.poc.api.showcase.dto.TrustUserSettings;
 import com.poc.api.showcase.service.TrustSnapshotService;
 import com.poc.api.showcase.persistence.TrustUserSettingsRepository;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/trust")
-public class TrustController {
+public class ShowcaseTrustController {
 
     private final TrustSnapshotService trustSnapshotService;
     private final TrustUserSettingsRepository trustUserSettingsRepository;
 
-    public TrustController(TrustSnapshotService trustSnapshotService,
+    public ShowcaseTrustController(TrustSnapshotService trustSnapshotService,
                            TrustUserSettingsRepository trustUserSettingsRepository) {
         this.trustSnapshotService = trustSnapshotService;
         this.trustUserSettingsRepository = trustUserSettingsRepository;
@@ -34,11 +29,6 @@ public class TrustController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-
-    /**
-     * EPIC 12.6: Consent hook (PoC). Allows a user to opt-in/out of trust signals.
-     * This does not delete data; it stores a flag that downstream services can honor for minimisation.
-     */
     @PostMapping("/consent")
     public ResponseEntity<TrustUserSettings> updateConsent(@RequestBody TrustConsentRequest req) {
         if (req == null || req.userId == null || req.userId.isBlank() || req.consentGranted == null) {
@@ -47,10 +37,6 @@ public class TrustController {
         return ResponseEntity.ok(trustUserSettingsRepository.upsertConsent(req.userId.trim(), req.consentGranted));
     }
 
-    /**
-     * EPIC 12.6: Trust reset hook (PoC). Marks a baseline reset timestamp so "last time" comparisons
-     * are made only after this point.
-     */
     @PostMapping("/reset")
     public ResponseEntity<TrustUserSettings> resetTrust(@RequestBody TrustResetRequest req) {
         if (req == null || req.userId == null || req.userId.isBlank()) {
