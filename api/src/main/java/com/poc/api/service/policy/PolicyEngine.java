@@ -61,6 +61,50 @@ public class PolicyEngine {
         return PolicyOutcome.noMatch();
     }
 
+// EPIC 13.7 — runtime guardrails. Return a possibly "suppressed" action (no override), with a reason explaining why.
+private PolicyAction applyGuardrails(PolicyAction action, Map<String, Object> ctx) {
+    if (action == null) return null;
+
+    // Validate confidence cap range if provided
+    Double cap = action.confidenceCap();
+    if (cap != null) {
+        if (!(cap > 0.0 && cap <= 1.0)) {
+            return new PolicyAction(null, null, "Policy suppressed: confidence_cap must be in (0,1].");
+        }
+    }
+
+    // Require reason when overriding decision
+    if (action.decisionOverride() != null && (action.reason() == null || action.reason().isBlank())) {
+        return new PolicyAction(null, null, "Policy suppressed: override requires a non-empty reason.");
+    }
+
+    Double risk = asDouble(ctx.get("risk.score"));
+    Double anomaly = asDouble(ctx.get("behaviour.anomaly"));
+
+    // Guardrail: BLOCK only allowed when pre-policy risk already high
+    if ("BLOCK".equalsIgnoreCase(action.decisionOverride())) {
+        if (risk == null || risk < 0.85) {
+            return new PolicyAction(null, null, "Policy suppressed: BLOCK requires pre-policy risk ≥ 0.85.");
+        }
+    }
+
+    // Guardrail: ALLOW cannot override high-risk or anomalous sessions
+    if ("ALLOW".equalsIgnoreCase(action.decisionOverride())) {
+        boolean anomalous = anomaly != null && anomaly > 0.75;
+        if ((risk != null && risk > 0.55) || anomalous) {
+            return new PolicyAction(null, null, "Policy suppressed: ALLOW not permitted for high-risk/anomalous sessions.");
+        }
+    }
+
+    return action;
+}
+
+private static Double asDouble(Object o) {
+    if (o == null) return null;
+    if (o instanceof Number n) return n.doubleValue();
+    try { return Double.parseDouble(String.valueOf(o)); } catch (Exception e) { return null; }
+}
+
     private Map<String, Object> safeParse(String json) {
         if (!StringUtils.hasText(json)) return Collections.emptyMap();
         try {

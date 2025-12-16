@@ -50,11 +50,11 @@ public class AdminPolicyController {
     @PostMapping
     public ResponseEntity<?> create(@RequestBody PolicyRule body) {
         try {
-            // validate JSON fields are parseable maps (or empty)
             parseMap(body.getConditionJson());
             parseMap(body.getActionJson());
-            long id = service.create(body);
-            return ResponseEntity.ok(Map.of("id", id));
+
+            PolicyRule created = service.create(body);
+            return ResponseEntity.ok(Map.of("id", created.getId()));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
         }
@@ -65,12 +65,14 @@ public class AdminPolicyController {
         try {
             parseMap(body.getConditionJson());
             parseMap(body.getActionJson());
-            service.update(id, body);
-            return ResponseEntity.ok().build();
+
+            PolicyRule updated = service.update(id, body);
+            return ResponseEntity.ok(updated);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
         }
     }
+
 
     @PatchMapping("/{id}/enabled")
     public ResponseEntity<?> enabled(@PathVariable("id") long id,
