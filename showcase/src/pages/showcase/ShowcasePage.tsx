@@ -10,6 +10,8 @@ import { TlsFingerprintInspector } from "../../components/TlsFingerprintInspecto
 import { TlsPanel } from "../../components/TlsPanel";
 import { TrustSnapshotPanel } from "../../components/TrustSnapshotPanel";
 import { UsersOverview } from "../../components/UsersOverview";
+import { JsonOptIn } from "../../ui/JsonOptIn";
+import { ExpandablePanel } from "../../ui/ExpandablePanel";
 
 export function ShowcasePage(props: {
   onDecisionChanged?: (decision: DecisionResponse | null) => void;
@@ -144,42 +146,17 @@ export function ShowcasePage(props: {
 
             <div className="divider" />
 
-            <div className="grid2Equal">
-              <div>
-                <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
-                  Score breakdown
+            <div className="stack" style={{ gap: 12 }}>
+              <ExpandablePanel
+                title="Decision explainability"
+                hint="Breakdown & signals are available, but raw JSON is opt-in"
+                defaultOpen
+              >
+                <div className="grid2Equal">
+                  <JsonOptIn title="Score breakdown" value={decision.breakdown} />
+                  <JsonOptIn title="Signals" value={decision.signals} />
                 </div>
-                <pre
-                  style={{
-                    margin: 0,
-                    background: "rgba(0,0,0,0.35)",
-                    padding: 12,
-                    borderRadius: 10,
-                    overflow: "auto",
-                    fontSize: 12
-                  }}
-                >
-                  {JSON.stringify(decision.breakdown, null, 2)}
-                </pre>
-              </div>
-
-              <div>
-                <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
-                  Signals
-                </div>
-                <pre
-                  style={{
-                    margin: 0,
-                    background: "rgba(0,0,0,0.35)",
-                    padding: 12,
-                    borderRadius: 10,
-                    overflow: "auto",
-                    fontSize: 12
-                  }}
-                >
-                  {JSON.stringify(decision.signals, null, 2)}
-                </pre>
-              </div>
+              </ExpandablePanel>
             </div>
           </div>
 

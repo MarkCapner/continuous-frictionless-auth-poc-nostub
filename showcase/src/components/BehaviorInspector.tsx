@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import type { BehaviorHistoryItem } from "../api";
 import { fetchBehaviorHistory } from "../api";
+import { JsonOptIn } from "../ui/JsonOptIn";
+import { ExpandablePanel } from "../ui/ExpandablePanel";
 
 export interface BehaviorInspectorProps {
   userHint: string;
@@ -104,32 +106,86 @@ export function BehaviorInspector({ userHint }: BehaviorInspectorProps) {
           <div style={twoColLayoutStyle}>
             <div style={leftColStyle}>
               <h4 style={subTitleStyle}>Recent sessions</h4>
-              <table style={tableStyle}>
-                <thead>
-                  <tr>
-                    <th>When</th>
-                    <th>Decision</th>
-                    <th>Conf.</th>
-                    <th>TLS FP</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.slice(0, 10).map((item) => (
-                    <tr
+
+              {/* Summary cards first (default) */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
+                {items.slice(0, 8).map((item) => {
+                  const active = item.id === selectedId;
+                  return (
+                    <div
                       key={item.id}
-                      style={item.id === selectedId ? selectedRowStyle : undefined}
                       onClick={() => setSelectedId(item.id)}
+                      style={{
+                        border: "1px solid var(--border)",
+                        borderRadius: 8,
+                        padding: "0.5rem 0.6rem",
+                        cursor: "pointer",
+                        background: active ? "rgba(99,102,241,0.10)" : "rgba(255,255,255,0.03)"
+                      }}
                     >
-                      <td>{formatTime(item.occurredAt)}</td>
-                      <td>
-                        <DecisionTag decision={item.decision} />
-                      </td>
-                      <td>{(item.confidence * 100).toFixed(1)}%</td>
-                      <td style={{ fontSize: "0.75rem" }}>{shortenFp(item.tlsFp)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>{formatTime(item.occurredAt)}</span>
+                          <DecisionTag decision={item.decision} />
+                          <span style={{ fontSize: "0.8rem" }}>{(item.confidence * 100).toFixed(1)}%</span>
+                        </div>
+                        <span style={{ fontSize: "0.75rem", color: "#6b7280" }}>{shortenFp(item.tlsFp)}</span>
+                      </div>
+
+                      <ExpandablePanel title="Details" hint="TLS FP, label, timestamp" defaultOpen={false}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                            <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>Occurred</span>
+                            <span style={{ fontSize: "0.8rem" }}>{formatDateTime(item.occurredAt)}</span>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                            <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>TLS FP</span>
+                            <span style={{ fontSize: "0.8rem" }}><code>{item.tlsFp || "n/a"}</code></span>
+                          </div>
+                          {item.label ? (
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                              <span style={{ fontSize: "0.8rem", color: "#6b7280" }}>Label</span>
+                              <span style={{ fontSize: "0.8rem" }}><code>{item.label}</code></span>
+                            </div>
+                          ) : null}
+                        </div>
+                      </ExpandablePanel>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Dense table becomes opt-in */}
+              <ExpandablePanel title="Show table" hint="Exact rows (top 25)" defaultOpen={false}>
+                <div style={{ marginTop: "0.5rem" }}>
+                  <table style={tableStyle}>
+                    <thead>
+                      <tr>
+                        <th>When</th>
+                        <th>Decision</th>
+                        <th>Conf.</th>
+                        <th>TLS FP</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.slice(0, 25).map((item) => (
+                        <tr
+                          key={item.id}
+                          style={item.id === selectedId ? selectedRowStyle : undefined}
+                          onClick={() => setSelectedId(item.id)}
+                        >
+                          <td>{formatTime(item.occurredAt)}</td>
+                          <td>
+                            <DecisionTag decision={item.decision} />
+                          </td>
+                          <td>{(item.confidence * 100).toFixed(1)}%</td>
+                          <td style={{ fontSize: "0.75rem" }}>{shortenFp(item.tlsFp)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </ExpandablePanel>
             </div>
 
             <div style={rightColStyle}>
@@ -160,6 +216,10 @@ export function BehaviorInspector({ userHint }: BehaviorInspectorProps) {
                     inspection.
                   </p>
                   <FeatureSummary behaviorJson={selected.behaviorJson} />
+
+                  <div style={{ marginTop: "0.75rem" }}>
+                    <JsonOptIn title="Raw behaviour_json" value={selected.behaviorJson ?? null} />
+                  </div>
                 </div>
               )}
             </div>

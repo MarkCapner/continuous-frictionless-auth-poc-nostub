@@ -9,6 +9,7 @@ import {
   fetchEffectivePolicies,
   simulatePolicy
 } from "../api";
+import { JsonOptIn } from "../ui/JsonOptIn";
 
 function safeParseJson(text: string): { ok: true; value: any } | { ok: false; error: string } {
   try {
@@ -302,7 +303,12 @@ export function AdminPolicyView() {
         </div>
 
         {effective ? (
-          <pre style={{ margin: 0, overflowX: "auto" }}>{JSON.stringify(effective, null, 2)}</pre>
+          <details>
+            <summary style={{ cursor: "pointer" }}>Show raw JSON</summary>
+            <div style={{ marginTop: 10 }}>
+              <JsonOptIn title="Effective policies (raw JSON)" data={effective} />
+            </div>
+          </details>
         ) : (
           <div style={{ opacity: 0.8 }}>Enter tenant/user ids to preview the resolved policy order.</div>
         )}
@@ -443,7 +449,12 @@ export function AdminPolicyView() {
             </div>
 
             {simulateResult ? (
-              <pre style={{ marginTop: 10, overflowX: "auto" }}>{JSON.stringify(simulateResult, null, 2)}</pre>
+              <details style={{ marginTop: 10 }}>
+                <summary style={{ cursor: "pointer" }}>Show raw JSON</summary>
+                <div style={{ marginTop: 10 }}>
+                  <JsonOptIn title="Simulation result (raw JSON)" data={simulateResult} />
+                </div>
+              </details>
             ) : null}
           </div>
         </div>

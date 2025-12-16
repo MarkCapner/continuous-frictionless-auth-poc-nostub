@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import type { AdminUserSummary, AdminUserDetail } from "../api";
 import { fetchAdminUsers, fetchAdminUserDetail } from "../api";
+import { SummaryCards } from "../ui/SummaryCards";
+import { ExpandablePanel } from "../ui/ExpandablePanel";
 
 export function AdminUsersView() {
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
@@ -9,6 +11,14 @@ export function AdminUsersView() {
   const [loadingList, setLoadingList] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const totals = React.useMemo(() => {
+    const totalSessions = users.reduce((a, u) => a + (u.sessions ?? 0), 0);
+    const totalDevices = users.reduce((a, u) => a + (u.devices ?? 0), 0);
+    const avgTrust = users.length ? users.reduce((a, u) => a + Number(u.userTrustScore ?? 0), 0) / users.length : 0;
+    const avgSharing = users.length ? users.reduce((a, u) => a + Number(u.userAccountSharingRisk ?? 0), 0) / users.length : 0;
+    return { totalSessions, totalDevices, avgTrust, avgSharing };
+  }, [users]);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,47 +87,75 @@ export function AdminUsersView() {
             <span className="muted">{users.length} total</span>
           </div>
 
+          <SummaryCards
+            cards={[
+              {
+                label: "Users",
+                value: users.length,
+                hint: "Unique user IDs seen in decision_log",
+              },
+              {
+                label: "Sessions",
+                value: users.reduce((a, u) => a + (u.sessions ?? 0), 0),
+                hint: "Total sessions across users",
+              },
+              {
+                label: "Avg trust",
+                value: users.length ? (users.reduce((a, u) => a + Number(u.userTrustScore ?? 0), 0) / users.length).toFixed(2) : "—",
+                hint: "Mean trustScore",
+              },
+              {
+                label: "Avg sharing risk",
+                value: users.length ? (users.reduce((a, u) => a + Number(u.userAccountSharingRisk ?? 0), 0) / users.length).toFixed(2) : "—",
+                hint: "Mean accountSharingRisk",
+                danger: users.length ? (users.reduce((a, u) => a + Number(u.userAccountSharingRisk ?? 0), 0) / users.length) > 0.6 : false,
+              },
+            ]}
+          />
+
           {loadingList && <p className="muted">Loading users…</p>}
           {!loadingList && users.length === 0 && (
             <p className="muted">No users yet. Generate some traffic via the Showcase first.</p>
           )}
 
           {users.length > 0 && (
-            <div className="tableWrap" style={{ maxHeight: 420 }}>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>User</th>
-                    <th>Sessions</th>
-                    <th>Devices</th>
-                    <th>Avg conf</th>
-                    <th>Trust</th>
-                    <th>Sharing</th>
-                    <th>Last seen</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((u) => {
-                    const active = u.userId === selectedUserId;
-                    return (
-                      <tr
-                        key={u.userId}
-                        onClick={() => setSelectedUserId(u.userId)}
-                        className={`rowBtn ${active ? "rowActive" : ""}`}
-                      >
-                        <td className="mono">{u.userId}</td>
-                        <td>{u.sessions}</td>
-                        <td>{u.devices}</td>
-                        <td className="mono">{Number(u.avgConfidence).toFixed(3)}</td>
-                        <td className="mono">{Number(u.userTrustScore).toFixed(2)}</td>
-                        <td className="mono">{Number(u.userAccountSharingRisk).toFixed(2)}</td>
-                        <td className="muted">{u.lastSeen ? new Date(u.lastSeen).toLocaleString() : "—"}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <ExpandablePanel title="User list" hint="Click a row to load the user breakdown" defaultOpen>
+              <div className="tableWrap" style={{ maxHeight: 420 }}>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Sessions</th>
+                      <th>Devices</th>
+                      <th>Avg conf</th>
+                      <th>Trust</th>
+                      <th>Sharing</th>
+                      <th>Last seen</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((u) => {
+                      const active = u.userId === selectedUserId;
+                      return (
+                        <tr
+                          key={u.userId}
+                          onClick={() => setSelectedUserId(u.userId)}
+                          className={`rowBtn ${active ? "rowActive" : ""}`}
+                        >
+                          <td className="mono">{u.userId}</td>
+                          <td>{u.sessions}</td>
+                          <td>{u.devices}</td>
+                          <td className="mono">{Number(u.avgConfidence).toFixed(3)}</td>
+                          <td className="mono">{Number(u.userTrustScore).toFixed(2)}</td>
+                          <td className="mono">{Number(u.userAccountSharingRisk).toFixed(2)}</td>
+                          <td className="muted">{u.lastSeen ? new Date(u.lastSeen).toLocaleString() : "—"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </ExpandablePanel>
           )}
         </div>
 

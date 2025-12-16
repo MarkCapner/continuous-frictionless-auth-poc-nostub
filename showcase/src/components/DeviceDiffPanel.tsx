@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import type { DeviceProfileSummary, DeviceDiffResponse } from "../api";
 import { fetchDeviceHistory, fetchDeviceDiff } from "../api";
+import { ExpandablePanel } from "../ui/ExpandablePanel";
 
 export interface DeviceDiffPanelProps {
   userHint: string;
@@ -162,24 +163,51 @@ export function DeviceDiffPanel({ userHint }: DeviceDiffPanelProps) {
               {diff.changes.length === 0 ? (
                 <p style={bodyStyle}>No differences detected between these two device profiles.</p>
               ) : (
-                <table style={tableStyle}>
-                  <thead>
-                    <tr>
-                      <th>Field</th>
-                      <th>Left</th>
-                      <th>Right</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {diff.changes.map((c, idx) => (
-                      <tr key={idx}>
-                        <td>{c.field}</td>
-                        <td>{c.leftValue}</td>
-                        <td>{c.rightValue}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+                  {diff.changes.slice(0, 10).map((c, idx) => (
+                    <div key={idx} className="summaryCard" style={{ padding: "0.55rem 0.7rem" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                        <div style={{ fontWeight: 700 }}>{c.field}</div>
+                        <span className="chip">changed</span>
+                      </div>
+                      <ExpandablePanel title="Show values" hint="left vs right" defaultOpen={false}>
+                        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 10 }}>
+                          <div>
+                            <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>Left</div>
+                            <div style={{ fontSize: "0.85rem", wordBreak: "break-word" }}>{String(c.leftValue ?? "")}</div>
+                          </div>
+                          <div>
+                            <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>Right</div>
+                            <div style={{ fontSize: "0.85rem", wordBreak: "break-word" }}>{String(c.rightValue ?? "")}</div>
+                          </div>
+                        </div>
+                      </ExpandablePanel>
+                    </div>
+                  ))}
+
+                  <ExpandablePanel title="Show full diff table" hint={`All fields (${diff.changes.length})`} defaultOpen={false}>
+                    <div style={{ marginTop: "0.5rem" }}>
+                      <table style={tableStyle}>
+                        <thead>
+                          <tr>
+                            <th>Field</th>
+                            <th>Left</th>
+                            <th>Right</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {diff.changes.map((c, idx) => (
+                            <tr key={idx}>
+                              <td>{c.field}</td>
+                              <td>{c.leftValue}</td>
+                              <td>{c.rightValue}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </ExpandablePanel>
+                </div>
               )}
             </div>
           )}

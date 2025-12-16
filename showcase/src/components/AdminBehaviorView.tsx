@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import type { BehaviorBaseline } from "../api";
 import { fetchBehaviorBaselines } from "../api";
+import { SummaryCards } from "../ui/SummaryCards";
+import { ExpandablePanel } from "../ui/ExpandablePanel";
 
 export function AdminBehaviorView() {
   const [rows, setRows] = useState<BehaviorBaseline[]>([]);
@@ -59,38 +61,80 @@ export function AdminBehaviorView() {
           )}
 
           {!loading && !error && rows.length > 0 && (
-            <div className="tableWrap" style={{ maxHeight: 460 }}>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>User</th>
-                    <th>Feature</th>
-                    <th>Mean</th>
-                    <th>Std dev</th>
-                    <th>Decay</th>
-                    <th>Updated</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r, idx) => {
-                    const active = selected && r.userId === selected.userId && r.feature === selected.feature;
-                    return (
-                      <tr
-                        key={`${r.userId}-${r.feature}-${idx}`}
-                        onClick={() => setSelected(r)}
-                        className={`rowBtn ${active ? "rowActive" : ""}`}
-                      >
-                        <td className="mono">{r.userId}</td>
-                        <td className="mono">{r.feature}</td>
-                        <td>{r.mean.toFixed(4)}</td>
-                        <td>{r.stdDev.toFixed(4)}</td>
-                        <td>{r.decay.toFixed(4)}</td>
-                        <td className="muted">{new Date(r.updatedAt).toLocaleString()}</td>
+            <div className="stack" style={{ gap: 10, marginTop: 6 }}>
+              <SummaryCards
+                cards={[
+                  { label: "Users", value: new Set(rows.map((r) => r.userId)).size, hint: "unique" },
+                  { label: "Features", value: new Set(rows.map((r) => r.feature)).size, hint: "unique" },
+                  { label: "Rows", value: rows.length, hint: "baselines" },
+                  { label: "Latest", value: new Date(Math.max(...rows.map((r) => new Date(r.updatedAt).getTime()))).toLocaleDateString(), hint: "updated" }
+                ]}
+              />
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 420, overflow: "auto" }}>
+                {rows.slice(0, 12).map((r, idx) => {
+                  const active = selected && r.userId === selected.userId && r.feature === selected.feature;
+                  return (
+                    <div
+                      key={`${r.userId}-${r.feature}-${idx}`}
+                      className={`summaryCard rowBtn ${active ? "rowActive" : ""}`}
+                      onClick={() => setSelected(r)}
+                      style={{ cursor: "pointer", padding: "0.55rem 0.7rem" }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                        <div>
+                          <div className="mono" style={{ fontWeight: 750 }}>{r.userId}</div>
+                          <div className="mono" style={{ fontSize: 12, opacity: 0.85 }}>{r.feature}</div>
+                        </div>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                          <span className="chip">μ {r.mean.toFixed(3)}</span>
+                          <span className="chip">σ {r.stdDev.toFixed(3)}</span>
+                          <span className="chip">decay {r.decay.toFixed(2)}</span>
+                        </div>
+                      </div>
+                      <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+                        Updated {new Date(r.updatedAt).toLocaleString()}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <ExpandablePanel title="Show full table" hint={`All rows (${rows.length})`} defaultOpen={false}>
+                <div className="tableWrap" style={{ maxHeight: 460, marginTop: 8 }}>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>User</th>
+                        <th>Feature</th>
+                        <th>Mean</th>
+                        <th>Std dev</th>
+                        <th>Decay</th>
+                        <th>Updated</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody>
+                      {rows.map((r, idx) => {
+                        const active = selected && r.userId === selected.userId && r.feature === selected.feature;
+                        return (
+                          <tr
+                            key={`${r.userId}-${r.feature}-${idx}`}
+                            onClick={() => setSelected(r)}
+                            className={`rowBtn ${active ? "rowActive" : ""}`}
+                          >
+                            <td className="mono">{r.userId}</td>
+                            <td className="mono">{r.feature}</td>
+                            <td>{r.mean.toFixed(4)}</td>
+                            <td>{r.stdDev.toFixed(4)}</td>
+                            <td>{r.decay.toFixed(4)}</td>
+                            <td className="muted">{new Date(r.updatedAt).toLocaleString()}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </ExpandablePanel>
             </div>
           )}
         </div>

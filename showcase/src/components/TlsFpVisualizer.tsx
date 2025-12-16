@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import type { TlsFpOverview } from "../api";
 import { fetchTlsFpOverview } from "../api";
+import { SummaryCards } from "../ui/SummaryCards";
+import { ExpandablePanel } from "../ui/ExpandablePanel";
 
 export interface TlsFpVisualizerProps {
   userHint: string;
@@ -87,14 +89,20 @@ export function TlsFpVisualizer({ userHint, preselectedFp }: TlsFpVisualizerProp
         <div style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
           <section>
             <h4 style={subTitleStyle}>Overview</h4>
-            <p style={bodyStyle}>
-              <strong>TLS FP:</strong> <code>{overview.tlsFp}</code>
-              <br />
-              <strong>Profiles:</strong> {overview.profiles} · <strong>Users:</strong> {overview.users}
-            </p>
-            <p style={hintStyle}>
-              First seen {formatDate(overview.firstSeen)} · last seen {formatDate(overview.lastSeen)}
-            </p>
+            <div style={{ marginTop: 6 }}>
+              <div style={{ fontSize: "0.8rem", color: "#6b7280", marginBottom: 6 }}>TLS FP</div>
+              <div style={{ wordBreak: "break-all" }}><code>{overview.tlsFp}</code></div>
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <SummaryCards
+                cards={[
+                  { label: "Profiles", value: overview.profiles, hint: "observations" },
+                  { label: "Users", value: overview.users, hint: "unique users" },
+                  { label: "First", value: formatDate(overview.firstSeen), hint: "first seen" },
+                  { label: "Last", value: formatDate(overview.lastSeen), hint: "last seen" }
+                ]}
+              />
+            </div>
           </section>
 
           <section>
@@ -102,32 +110,67 @@ export function TlsFpVisualizer({ userHint, preselectedFp }: TlsFpVisualizerProp
             {overview.devices.length === 0 ? (
               <p style={bodyStyle}>No device profiles attached to this fingerprint yet.</p>
             ) : (
-              <table style={tableStyle}>
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>User</th>
-                    <th>User agent</th>
-                    <th>Country</th>
-                    <th>First seen</th>
-                    <th>Last seen</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {overview.devices.map((d) => (
-                    <tr key={d.id}>
-                      <td>#{d.id}</td>
-                      <td>{d.userId}</td>
-                      <td>
-                        {d.uaFamily} {d.uaVersion}
-                      </td>
-                      <td>{d.lastCountry ?? "–"}</td>
-                      <td>{formatDate(d.firstSeen)}</td>
-                      <td>{formatDate(d.lastSeen)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 8 }}>
+                {overview.devices.slice(0, 6).map((d) => (
+                  <div key={d.id} className="summaryCard" style={{ padding: "0.55rem 0.7rem" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        <div style={{ fontWeight: 700 }}>
+                          #{d.id} · <span className="mono">{d.userId}</span>
+                        </div>
+                        <div style={{ fontSize: "0.8rem", color: "#6b7280" }}>
+                          {(d.uaFamily || "Unknown") + (d.uaVersion ? " " + d.uaVersion : "")}
+                        </div>
+                      </div>
+                      <span className="chip">{d.lastCountry ?? "–"}</span>
+                    </div>
+
+                    <ExpandablePanel title="Details" hint="first/last seen" defaultOpen={false}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                          <span className="muted">First seen</span>
+                          <span className="muted">{formatDate(d.firstSeen)}</span>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                          <span className="muted">Last seen</span>
+                          <span className="muted">{formatDate(d.lastSeen)}</span>
+                        </div>
+                      </div>
+                    </ExpandablePanel>
+                  </div>
+                ))}
+
+                <ExpandablePanel title="Show full device table" hint={`All rows (${overview.devices.length})`} defaultOpen={false}>
+                  <div style={{ marginTop: "0.5rem" }}>
+                    <table style={tableStyle}>
+                      <thead>
+                        <tr>
+                          <th>ID</th>
+                          <th>User</th>
+                          <th>User agent</th>
+                          <th>Country</th>
+                          <th>First seen</th>
+                          <th>Last seen</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {overview.devices.map((d) => (
+                          <tr key={d.id}>
+                            <td>#{d.id}</td>
+                            <td>{d.userId}</td>
+                            <td>
+                              {(d.uaFamily || "Unknown") + (d.uaVersion ? " " + d.uaVersion : "")}
+                            </td>
+                            <td>{d.lastCountry ?? "–"}</td>
+                            <td>{formatDate(d.firstSeen)}</td>
+                            <td>{formatDate(d.lastSeen)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </ExpandablePanel>
+              </div>
             )}
           </section>
         </div>

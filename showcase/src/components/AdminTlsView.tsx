@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import type { TlsFingerprintSummary } from "../api";
 import { fetchAllTlsFingerprintSummaries } from "../api";
 import { TlsFingerprintInspector } from "./TlsFingerprintInspector";
+import { ExpandablePanel } from "../ui/ExpandablePanel";
 
 export function AdminTlsView() {
   const [summaries, setSummaries] = useState<TlsFingerprintSummary[]>([]);
@@ -67,36 +68,41 @@ export function AdminTlsView() {
           )}
 
           {!loading && !error && summaries.length > 0 && (
-            <div className="tableWrap" style={{ maxHeight: 420 }}>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>TLS FP</th>
-                    <th>Profiles</th>
-                    <th>Users</th>
-                    <th>First seen</th>
-                    <th>Last seen</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {summaries.map((s) => {
-                    const active = s.tlsFp === selectedFp;
-                    return (
-                      <tr
-                        key={s.tlsFp}
-                        onClick={() => setSelectedFp(s.tlsFp)}
-                        className={`rowBtn ${active ? "rowActive" : ""}`}
-                      >
-                        <td className="mono">{s.tlsFp}</td>
-                        <td>{s.profiles}</td>
-                        <td>{s.users}</td>
-                        <td className="muted">{new Date(s.firstSeen).toLocaleString()}</td>
-                        <td className="muted">{new Date(s.lastSeen).toLocaleString()}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div style={{ maxHeight: 420, overflow: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
+              {summaries.map((s) => {
+                const active = s.tlsFp === selectedFp;
+                return (
+                  <div
+                    key={s.tlsFp}
+                    className={`summaryCard rowBtn ${active ? "rowActive" : ""}`}
+                    onClick={() => setSelectedFp(s.tlsFp)}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                      <div className="mono" style={{ fontWeight: 750, wordBreak: "break-all" }}>{s.tlsFp}</div>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                        <span className="chip">profiles · {s.profiles}</span>
+                        <span className="chip">users · {s.users}</span>
+                      </div>
+                    </div>
+                    <ExpandablePanel
+                      title="TLS fingerprint details"
+                      hint="First/last observed"
+                    >
+                      <div className="stack" style={{ gap: 6 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                          <span className="muted">First seen</span>
+                          <span className="muted">{new Date(s.firstSeen).toLocaleString()}</span>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                          <span className="muted">Last seen</span>
+                          <span className="muted">{new Date(s.lastSeen).toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </ExpandablePanel>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

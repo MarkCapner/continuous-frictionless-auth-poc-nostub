@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { API_BASE } from "../api";
+import { SummaryCards } from "../ui/SummaryCards";
+import { ExpandablePanel } from "../ui/ExpandablePanel";
+import { JsonOptIn } from "../ui/JsonOptIn";
 
 type ModelInfo = {
   registryId: number | null;
@@ -200,11 +203,31 @@ export function AdminMlView() {
           </div>
         )}
 
-        <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 10 }}>
-          <div><b>Active:</b> {info?.registryVersion ?? "none"}</div>
-          <div><b>Format:</b> {info?.registryFormat ?? "—"}</div>
-          <div><b>Last trained:</b> {info?.lastTrainedAt ?? "—"}</div>
-          <div><b>Canary:</b> {canaryText}</div>
+        <div style={{ marginTop: 10 }}>
+          <SummaryCards
+            cards={[
+              {
+                label: "Active model",
+                value: info?.registryVersion ?? "none",
+                hint: "Current registryVersion used by the decision engine",
+              },
+              {
+                label: "Format",
+                value: info?.registryFormat ?? "—",
+                hint: "Model serialization format",
+              },
+              {
+                label: "Last trained",
+                value: info?.lastTrainedAt ? new Date(info.lastTrainedAt).toLocaleString() : "—",
+                hint: "When the active model was last produced",
+              },
+              {
+                label: "Canary",
+                value: canaryText,
+                hint: "Traffic split for canary model (if enabled)",
+              },
+            ]}
+          />
         </div>
 
         <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
@@ -228,115 +251,192 @@ export function AdminMlView() {
 
       <div style={sectionStyle}>
         <h3 style={{ marginTop: 0 }}>Model registry</h3>
-        <table style={tableStyle}>
-          <thead>
-            <tr>
-              <th style={thtd}>id</th>
-              <th style={thtd}>created</th>
-              <th style={thtd}>version</th>
-              <th style={thtd}>format</th>
-              <th style={thtd}>active</th>
-              <th style={thtd}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {registry.map((m: any) => (
-              <tr key={m.id}>
-                <td style={thtd}>{m.id}</td>
-                <td style={thtd}>{m.createdAt}</td>
-                <td style={thtd}>{m.version}</td>
-                <td style={thtd}>{m.format}</td>
-                <td style={thtd}>{String(m.active)}</td>
-                <td style={thtd}>
-                  <button onClick={() => activateModel(m.id)} disabled={busy || m.active}>Activate</button>
-                </td>
-              </tr>
-            ))}
-            {registry.length === 0 && (
-              <tr><td style={thtd} colSpan={6}>No models yet (run retrain).</td></tr>
-            )}
-          </tbody>
-        </table>
+        <SummaryCards
+          cards={[
+            {
+              label: "Models",
+              value: registry.length,
+              hint: "Models stored in model_registry",
+            },
+            {
+              label: "Active",
+              value: registry.find((m: any) => m.active)?.version ?? "none",
+              hint: "Currently active registry version",
+            },
+            {
+              label: "Latest",
+              value: registry[0]?.version ?? "—",
+              hint: "Most recent registry entry (by query order)",
+            },
+            {
+              label: "Actions",
+              value: busy ? "Working…" : "Ready",
+              hint: "Activate promotes a model to active=true",
+            },
+          ]}
+        />
+
+        <div style={{ marginTop: 12 }}>
+          <ExpandablePanel title="Registry entries" hint="Promote a model to active" defaultOpen={false}>
+            <div className="tableWrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>id</th>
+                    <th>created</th>
+                    <th>version</th>
+                    <th>format</th>
+                    <th>active</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {registry.map((m: any) => (
+                    <tr key={m.id}>
+                      <td className="mono">{m.id}</td>
+                      <td className="muted">{m.createdAt}</td>
+                      <td className="mono">{m.version}</td>
+                      <td>{m.format}</td>
+                      <td>{String(m.active)}</td>
+                      <td>
+                        <button className="btn" onClick={() => activateModel(m.id)} disabled={busy || m.active}>
+                          Activate
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {registry.length === 0 && (
+                    <tr><td colSpan={6} className="muted">No models yet (run retrain).</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </ExpandablePanel>
+        </div>
       </div>
 
       <div style={sectionStyle}>
         <h3 style={{ marginTop: 0 }}>Scorecards</h3>
-        <table style={tableStyle}>
-          <thead>
-            <tr>
-              <th style={thtd}>id</th>
-              <th style={thtd}>created</th>
-              <th style={thtd}>trigger</th>
-              <th style={thtd}>modelId</th>
-              <th style={thtd}>status</th>
-              <th style={thtd}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {scorecards.map((s: any) => (
-              <tr key={s.id}>
-                <td style={thtd}>{s.id}</td>
-                <td style={thtd}>{s.createdAt}</td>
-                <td style={thtd}>{s.triggerType}</td>
-                <td style={thtd}>{s.modelId ?? ""}</td>
-                <td style={thtd}>{s.status}</td>
-                <td style={thtd}><button onClick={() => openScorecard(s.id)} disabled={busy}>Open</button></td>
-              </tr>
-            ))}
-            {scorecards.length === 0 && (
-              <tr><td style={thtd} colSpan={6}>No scorecards yet.</td></tr>
-            )}
-          </tbody>
-        </table>
+        <SummaryCards
+          cards={[
+            {
+              label: "Scorecards",
+              value: scorecards.length,
+              hint: "Retrain KPI snapshots (baseline vs recovery)",
+            },
+            {
+              label: "Latest",
+              value: scorecards[0]?.createdAt ? new Date(scorecards[0].createdAt).toLocaleString() : "—",
+              hint: "Most recent scorecard (by query order)",
+            },
+            {
+              label: "Selected",
+              value: selected ? `#${selected.id}` : "—",
+              hint: "Open a scorecard to see the metrics",
+            },
+            {
+              label: "Status",
+              value: selected?.status ?? "—",
+              hint: "Scorecard status",
+              danger: selected?.status ? String(selected.status).toLowerCase().includes("fail") : false,
+            },
+          ]}
+        />
+
+        <div style={{ marginTop: 12 }}>
+          <ExpandablePanel title="Scorecard list" hint="Open a scorecard to view baseline/recovery metrics" defaultOpen={false}>
+            <div className="tableWrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>id</th>
+                    <th>created</th>
+                    <th>trigger</th>
+                    <th>modelId</th>
+                    <th>status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scorecards.map((s: any) => (
+                    <tr key={s.id}>
+                      <td className="mono">{s.id}</td>
+                      <td className="muted">{s.createdAt}</td>
+                      <td>{s.triggerType}</td>
+                      <td className="mono">{s.modelId ?? ""}</td>
+                      <td>{s.status}</td>
+                      <td>
+                        <button className="btn" onClick={() => openScorecard(s.id)} disabled={busy}>Open</button>
+                      </td>
+                    </tr>
+                  ))}
+                  {scorecards.length === 0 && (
+                    <tr><td colSpan={6} className="muted">No scorecards yet.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </ExpandablePanel>
+        </div>
 
         {selected && (
           <div style={{ marginTop: 12 }}>
-            <h4 style={{ margin: "8px 0" }}>Scorecard #{selected.id} ({selected.status})</h4>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-              <div>
-                <b>Baseline</b>
-                <pre style={{ fontSize: 12, whiteSpace: "pre-wrap" }}>{JSON.stringify(JSON.parse(selected.baselineMetricsJson), null, 2)}</pre>
+            <ExpandablePanel
+              title={`Scorecard #${selected.id} (${selected.status})`}
+              hint="Metrics are available, but raw JSON is opt-in"
+              defaultOpen
+            >
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                <JsonOptIn title="Baseline metrics" value={selected.baselineMetricsJson} />
+                <JsonOptIn title="Recovery metrics" value={selected.recoveryMetricsJson} />
+                <JsonOptIn title="Delta metrics" value={selected.deltaMetricsJson} />
               </div>
-              <div>
-                <b>Recovery</b>
-                <pre style={{ fontSize: 12, whiteSpace: "pre-wrap" }}>{JSON.stringify(JSON.parse(selected.recoveryMetricsJson), null, 2)}</pre>
-              </div>
-              <div>
-                <b>Delta</b>
-                <pre style={{ fontSize: 12, whiteSpace: "pre-wrap" }}>{JSON.stringify(JSON.parse(selected.deltaMetricsJson), null, 2)}</pre>
-              </div>
-            </div>
+            </ExpandablePanel>
           </div>
         )}
       </div>
 
       <div style={sectionStyle}>
         <h3 style={{ marginTop: 0 }}>Change history</h3>
-        <table style={tableStyle}>
-          <thead>
-            <tr>
-              <th style={thtd}>created</th>
-              <th style={thtd}>event</th>
-              <th style={thtd}>from</th>
-              <th style={thtd}>to</th>
-              <th style={thtd}>reason</th>
-            </tr>
-          </thead>
-          <tbody>
-            {changes.map((c: any, idx: number) => (
-              <tr key={idx}>
-                <td style={thtd}>{c.createdAt}</td>
-                <td style={thtd}>{c.eventType}</td>
-                <td style={thtd}>{c.fromModelId ?? ""}</td>
-                <td style={thtd}>{c.toModelId ?? ""}</td>
-                <td style={thtd}>{c.reason ?? ""}</td>
-              </tr>
-            ))}
-            {changes.length === 0 && (
-              <tr><td style={thtd} colSpan={5}>No change events yet.</td></tr>
-            )}
-          </tbody>
-        </table>
+        <SummaryCards
+          cards={[
+            { label: "Events", value: changes.length, hint: "Model changes, canary updates, promotions, rollbacks" },
+            { label: "Latest", value: changes[0]?.createdAt ? new Date(changes[0].createdAt).toLocaleString() : "—", hint: "Most recent change" },
+            { label: "Last event", value: changes[0]?.eventType ?? "—", hint: "Most recent event type" },
+            { label: "State", value: busy ? "Working…" : "Ready", hint: "UI action state" },
+          ]}
+        />
+        <div style={{ marginTop: 12 }}>
+          <ExpandablePanel title="Event log" hint="Full change log (expand to view)" defaultOpen={false}>
+            <div className="tableWrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>created</th>
+                    <th>event</th>
+                    <th>from</th>
+                    <th>to</th>
+                    <th>reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {changes.map((c: any, idx: number) => (
+                    <tr key={idx}>
+                      <td className="muted">{c.createdAt}</td>
+                      <td>{c.eventType}</td>
+                      <td className="mono">{c.fromModelId ?? ""}</td>
+                      <td className="mono">{c.toModelId ?? ""}</td>
+                      <td className="muted">{c.reason ?? ""}</td>
+                    </tr>
+                  ))}
+                  {changes.length === 0 && (
+                    <tr><td colSpan={5} className="muted">No change events yet.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </ExpandablePanel>
+        </div>
       </div>
 
 
@@ -345,67 +445,95 @@ export function AdminMlView() {
         <div className="muted" style={{ marginBottom: 10 }}>
           Sessions where a policy rule matched and influenced (or could have influenced) the final decision.
         </div>
-        <table style={tableStyle}>
-          <thead>
-            <tr>
-              <th style={thtd}>time</th>
-              <th style={thtd}>session</th>
-              <th style={thtd}>user</th>
-              <th style={thtd}>decision</th>
-              <th style={thtd}>confidence</th>
-              <th style={thtd}>policy</th>
-              <th style={thtd}>reason</th>
-            </tr>
-          </thead>
-          <tbody>
-            {policyMatches.map((p: any, idx: number) => (
-              <tr key={idx}>
-                <td style={thtd}>{p.occurred_at ?? ""}</td>
-                <td style={thtd}>{p.session_id ?? ""}</td>
-                <td style={thtd}>{p.user_id ?? ""}</td>
-                <td style={thtd}>{p.decision ?? ""}</td>
-                <td style={thtd}>{typeof p.confidence === "number" ? p.confidence.toFixed(3) : p.confidence ?? ""}</td>
-                <td style={thtd}>{p.policy?.policy_id ?? p.policy?.policyId ?? ""}</td>
-                <td style={thtd}>{p.policy?.reason ?? p.policy?.description ?? ""}</td>
-              </tr>
-            ))}
-            {policyMatches.length === 0 && (
-              <tr><td style={thtd} colSpan={7}>No policy matches yet.</td></tr>
-            )}
-          </tbody>
-        </table>
+        <SummaryCards
+          cards={[
+            { label: "Matches", value: policyMatches.length, hint: "Recent sessions where a policy rule matched" },
+            { label: "Latest", value: policyMatches[0]?.occurred_at ? new Date(policyMatches[0].occurred_at).toLocaleString() : "—", hint: "Most recent match" },
+            { label: "Decision", value: policyMatches[0]?.decision ?? "—", hint: "Most recent decision" },
+            { label: "Policy", value: policyMatches[0]?.policy?.policy_id ?? policyMatches[0]?.policy?.policyId ?? "—", hint: "Most recent policy id" },
+          ]}
+        />
+        <div style={{ marginTop: 12 }}>
+          <ExpandablePanel title="Match log" hint="Expand to view the full list" defaultOpen={false}>
+            <div className="tableWrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>time</th>
+                    <th>session</th>
+                    <th>user</th>
+                    <th>decision</th>
+                    <th>confidence</th>
+                    <th>policy</th>
+                    <th>reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {policyMatches.map((p: any, idx: number) => (
+                    <tr key={idx}>
+                      <td className="muted">{p.occurred_at ?? ""}</td>
+                      <td className="mono">{p.session_id ?? ""}</td>
+                      <td className="mono">{p.user_id ?? ""}</td>
+                      <td>{p.decision ?? ""}</td>
+                      <td className="mono">{typeof p.confidence === "number" ? p.confidence.toFixed(3) : p.confidence ?? ""}</td>
+                      <td className="mono">{p.policy?.policy_id ?? p.policy?.policyId ?? ""}</td>
+                      <td className="muted">{p.policy?.reason ?? p.policy?.description ?? ""}</td>
+                    </tr>
+                  ))}
+                  {policyMatches.length === 0 && (
+                    <tr><td colSpan={7} className="muted">No policy matches yet.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </ExpandablePanel>
+        </div>
       </div>
       <div style={sectionStyle}>
         <h3 style={{ marginTop: 0 }}>Retrain jobs</h3>
-        <table style={tableStyle}>
-          <thead>
-            <tr>
-              <th style={thtd}>id</th>
-              <th style={thtd}>created</th>
-              <th style={thtd}>status</th>
-              <th style={thtd}>from</th>
-              <th style={thtd}>to</th>
-              <th style={thtd}>reason</th>
-              <th style={thtd}>error</th>
-            </tr>
-          </thead>
-          <tbody>
-            {jobs.map((j: any) => (
-              <tr key={j.id}>
-                <td style={thtd}>{j.id}</td>
-                <td style={thtd}>{j.createdAt}</td>
-                <td style={thtd}>{j.status}</td>
-                <td style={thtd}>{j.fromModelId ?? ""}</td>
-                <td style={thtd}>{j.toModelId ?? ""}</td>
-                <td style={thtd}>{j.reason ?? ""}</td>
-                <td style={thtd}>{j.error ?? ""}</td>
-              </tr>
-            ))}
-            {jobs.length === 0 && (
-              <tr><td style={thtd} colSpan={7}>No jobs yet.</td></tr>
-            )}
-          </tbody>
-        </table>
+        <SummaryCards
+          cards={[
+            { label: "Jobs", value: jobs.length, hint: "Retrain job queue" },
+            { label: "Latest", value: jobs[0]?.createdAt ? new Date(jobs[0].createdAt).toLocaleString() : "—", hint: "Most recent job" },
+            { label: "Latest status", value: jobs[0]?.status ?? "—", hint: "Most recent status" },
+            { label: "State", value: busy ? "Working…" : "Ready", hint: "UI action state" },
+          ]}
+        />
+        <div style={{ marginTop: 12 }}>
+          <ExpandablePanel title="Job list" hint="Expand to view full job history" defaultOpen={false}>
+            <div className="tableWrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>id</th>
+                    <th>created</th>
+                    <th>status</th>
+                    <th>from</th>
+                    <th>to</th>
+                    <th>reason</th>
+                    <th>error</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {jobs.map((j: any) => (
+                    <tr key={j.id}>
+                      <td className="mono">{j.id}</td>
+                      <td className="muted">{j.createdAt}</td>
+                      <td>{j.status}</td>
+                      <td className="mono">{j.fromModelId ?? ""}</td>
+                      <td className="mono">{j.toModelId ?? ""}</td>
+                      <td className="muted">{j.reason ?? ""}</td>
+                      <td className="muted">{j.error ?? ""}</td>
+                    </tr>
+                  ))}
+                  {jobs.length === 0 && (
+                    <tr><td colSpan={7} className="muted">No jobs yet.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </ExpandablePanel>
+        </div>
       </div>
     </div>
   );
