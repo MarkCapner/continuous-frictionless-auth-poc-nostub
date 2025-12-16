@@ -1,21 +1,21 @@
 import React from "react";
+import { NavLink } from "react-router-dom";
 
 export type NavItem = {
   key: string;
   label: string;
+  to: string;
   section?: string;
 };
 
 export function Shell(props: {
   title: string;
   subtitle?: string;
-  activeKey: string;
   items: NavItem[];
-  onNavigate: (key: string) => void;
   topRight?: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const { title, subtitle, activeKey, items, onNavigate, topRight, children } = props;
+  const { title, subtitle, items, topRight, children } = props;
 
   let lastSection: string | undefined;
 
@@ -24,7 +24,7 @@ export function Shell(props: {
       <aside className="sidebar">
         <div className="brand">
           <div className="brandTitle">Continuous Frictionless Auth</div>
-          <div className="brandSub">Showcase · Dashboard · Admin</div>
+          <div className="brandSub">Showcase · Analyst · Admin / ML Ops</div>
         </div>
         <nav className="nav" aria-label="Primary navigation">
           {items.map((it) => {
@@ -38,13 +38,13 @@ export function Shell(props: {
             return (
               <React.Fragment key={it.key}>
                 {sectionEl}
-                <button
-                  type="button"
-                  className={`navBtn ${activeKey === it.key ? "navBtnActive" : ""}`}
-                  onClick={() => onNavigate(it.key)}
+                <NavLink
+                  to={it.to}
+                  className={({ isActive }) => `navBtn ${isActive ? "navBtnActive" : ""}`}
+                  end
                 >
                   <span>{it.label}</span>
-                </button>
+                </NavLink>
               </React.Fragment>
             );
           })}

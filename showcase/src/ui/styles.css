@@ -124,6 +124,8 @@ code, pre {
   background: transparent;
   border: 1px solid transparent;
   color: var(--text);
+  text-decoration: none;
+  font: inherit;
   padding: 10px 10px;
   border-radius: 12px;
   cursor: pointer;
