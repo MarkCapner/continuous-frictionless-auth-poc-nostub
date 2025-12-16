@@ -1,6 +1,6 @@
 package com.poc.api.ml;
 
-import com.poc.api.persistence.ModelRegistryRepository;
+import com.poc.api.ml.persistence.ModelRegistryRepository;
 import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Component;
 import org.tribuo.Model;
