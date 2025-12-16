@@ -15,7 +15,7 @@ import java.util.List;
  * These endpoints are read-only and are intended for dashboards / admin tooling.
  */
 @RestController
-@RequestMapping("/api/admin/analytics")
+@RequestMapping({"/api/admin/analytics","/api/v1/admin/analytics"})
 public class AdminAnalyticsController {
 
   private final AdminAnalyticsRepository analyticsRepository;

@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
  * Canonical route is additionally exposed under /api/risk/profile-check.
  */
 @RestController
-@RequestMapping("/api")
+@RequestMapping({"/api","/api/v1"})
 public class RiskDecisionController {
 
   private final RiskService riskService;

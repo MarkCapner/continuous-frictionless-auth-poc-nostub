@@ -8,7 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/admin/identity")
+@RequestMapping({"/api/admin/identity","/api/v1/admin/identity"})
 public class AdminIdentityController {
 
   private final IdentityGraphService identityGraph;

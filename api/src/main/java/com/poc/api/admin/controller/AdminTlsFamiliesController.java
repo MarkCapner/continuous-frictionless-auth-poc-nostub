@@ -21,7 +21,7 @@ import java.util.Optional;
  * EPIC 9: Admin TLS family management APIs.
  */
 @RestController
-@RequestMapping("/api/admin/tls-families")
+@RequestMapping({"/api/admin/tls-families","/api/v1/admin/tls-families"})
 public class AdminTlsFamiliesController {
 
   private final TlsFamilyRepository repo;

@@ -11,7 +11,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/showcase/behavior")
+@RequestMapping({"/api/showcase/behavior","/api/v1/showcase/behavior"})
 public class ShowcaseBehaviorController {
 
   private final SessionFeatureRepository sessionFeatureRepository;

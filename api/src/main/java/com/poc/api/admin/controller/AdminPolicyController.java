@@ -19,7 +19,7 @@ import java.util.*;
  * EPIC 13.1–13.5 Admin policy APIs (CRUD + effective resolution + recent matches + simulation).
  */
 @RestController
-@RequestMapping("/api/admin/policy")
+@RequestMapping({"/api/admin/policy","/api/v1/admin/policy"})
 public class AdminPolicyController {
 
     private final PolicyRuleService service;

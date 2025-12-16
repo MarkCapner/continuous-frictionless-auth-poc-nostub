@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/showcase/risk")
+@RequestMapping({"/api/showcase/risk","/api/v1/showcase/risk"})
 public class ShowcaseRiskTimelineController {
 
   private final DecisionLogRepository decisionLogRepository;

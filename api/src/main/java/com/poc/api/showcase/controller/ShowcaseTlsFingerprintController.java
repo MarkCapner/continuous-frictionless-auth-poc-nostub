@@ -13,7 +13,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/showcase")
+@RequestMapping({"/api/showcase","/api/v1/showcase"})
 public class ShowcaseTlsFingerprintController {
 
   private final DeviceProfileRepository deviceProfileRepository;

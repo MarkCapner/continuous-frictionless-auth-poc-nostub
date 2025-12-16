@@ -17,7 +17,7 @@ import java.util.Optional;
  * EPIC 9: Showcase TLS family lookup API.
  */
 @RestController
-@RequestMapping("/api/showcase")
+@RequestMapping({"/api/showcase","/api/v1/showcase"})
 public class ShowcaseTlsFamilyController {
 
   private final TlsFamilyRepository repo;

@@ -18,7 +18,7 @@ import java.util.List;
  * These are intentionally simple and unauthenticated for the PoC.
  */
 @RestController
-@org.springframework.web.bind.annotation.RequestMapping("/api")
+@org.springframework.web.bind.annotation.RequestMapping({"/api","/api/v1"})
 public class AdminUsersController {
 
   private final DecisionLogRepository decisionLogRepository;

@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/admin/model")
+@RequestMapping({"/api/admin/model","/api/v1/admin/model"})
 public class AdminModelController {
 
     private final ModelProvider modelProvider;

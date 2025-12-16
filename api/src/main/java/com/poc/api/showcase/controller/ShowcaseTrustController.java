@@ -10,7 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/trust")
+@RequestMapping({"/api/trust","/api/showcase/trust","/api/v1/showcase/trust"})
 public class ShowcaseTrustController {
 
     private final TrustSnapshotService trustSnapshotService;

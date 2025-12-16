@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Objects;
 
 @RestController
-@RequestMapping("/api/showcase/devices")
+@RequestMapping({"/api/showcase/devices","/api/v1/showcase/devices"})
 public class ShowcaseDevicesController {
 
   private final DeviceProfileRepository deviceProfileRepository;

@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/admin/behavior")
+@RequestMapping({"/api/admin/behavior","/api/v1/admin/behavior"})
 public class AdminBehaviorBaselinesController {
 
   private final BehaviorStatRepository behaviorStatRepository;
