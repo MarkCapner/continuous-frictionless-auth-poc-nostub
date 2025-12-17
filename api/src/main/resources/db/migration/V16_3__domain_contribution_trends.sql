@@ -1,3 +1,12 @@
+-- V0XX__create_session_domain_contributions.sql
+CREATE TABLE IF NOT EXISTS session_domain_contributions (
+  session_id BIGINT NOT NULL,
+  user_id TEXT NOT NULL,
+  domain TEXT NOT NULL,
+  session_time TIMESTAMPTZ NOT NULL,
+  absolute_score DOUBLE PRECISION NOT NULL,
+  deviation_label TEXT NOT NULL
+);
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS domain_contribution_daily AS
 SELECT
