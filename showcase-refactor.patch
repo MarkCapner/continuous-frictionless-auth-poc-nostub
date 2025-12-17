@@ -1,0 +1,232 @@
+diff --git a/showcase/src/pages/ShowcaseSessionPage.tsx b/showcase/src/pages/ShowcaseSessionPage.tsx
+new file mode 100644
+index 0000000..c1a9f31
+--- /dev/null
++++ b/showcase/src/pages/ShowcaseSessionPage.tsx
+@@ -0,0 +1,54 @@
++import { useEffect, useState } from "react";
++import { TrustHeader } from "../components/trust/TrustHeader";
++import { TrustTimeline } from "../components/trust/TrustTimeline";
++import { TrustBreakdown } from "../components/trust/TrustBreakdown";
++import { IdentityHistoryPanel } from "../components/identity/IdentityHistoryPanel";
++import { TechnicalToggle } from "../components/drilldown/TechnicalToggle";
++import { RawTelemetryPanel } from "../components/drilldown/RawTelemetryPanel";
++import { fetchLatestSession } from "../services/showcaseApi";
++
++export function ShowcaseSessionPage() {
++  const [session, setSession] = useState<any>();
++  const [showTech, setShowTech] = useState(false);
++
++  useEffect(() => {
++    fetchLatestSession().then(setSession);
++  }, []);
++
++  if (!session) return <div>Loading session…</div>;
++
++  return (
++    <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
++      <TrustHeader
++        score={session.trustScore}
++        decision={session.decision}
++        confidence={session.confidence}
++        summary={session.summary}
++      />
++
++      <TrustTimeline events={session.timelineEvents || []} />
++
++      <TrustBreakdown signals={session.signalBreakdown || []} />
++
++      <IdentityHistoryPanel identity={session.identity || {}} />
++
++      <TechnicalToggle
++        enabled={showTech}
++        onToggle={() => setShowTech(!showTech)}
++      />
++
++      {showTech && <RawTelemetryPanel telemetry={session.rawTelemetry} />}
++    </div>
++  );
++}
+diff --git a/showcase/src/components/trust/TrustHeader.tsx b/showcase/src/components/trust/TrustHeader.tsx
+new file mode 100644
+index 0000000..51f08a2
+--- /dev/null
++++ b/showcase/src/components/trust/TrustHeader.tsx
+@@ -0,0 +1,36 @@
++type Props = {
++  score: number;
++  decision: string;
++  confidence: "LOW" | "MEDIUM" | "HIGH";
++  summary: string;
++};
++
++export function TrustHeader({ score, decision, confidence, summary }: Props) {
++  const colour =
++    score > 75 ? "#2ecc71" : score > 45 ? "#f39c12" : "#e74c3c";
++
++  return (
++    <div
++      style={{
++        borderLeft: `6px solid ${colour}`,
++        padding: 20,
++        marginBottom: 24,
++        background: "#fafafa",
++        borderRadius: 6,
++      }}
++    >
++      <h2>Session Trust: {score}%</h2>
++      <strong>Decision: {decision}</strong>
++      <div>Confidence: {confidence}</div>
++      <p style={{ marginTop: 8, color: "#555" }}>{summary}</p>
++    </div>
++  );
++}
+diff --git a/showcase/src/components/trust/TrustTimeline.tsx b/showcase/src/components/trust/TrustTimeline.tsx
+new file mode 100644
+index 0000000..f39e29d
+--- /dev/null
++++ b/showcase/src/components/trust/TrustTimeline.tsx
+@@ -0,0 +1,38 @@
++type TimelineEvent = {
++  timestamp: string;
++  label: string;
++  score?: number;
++};
++
++export function TrustTimeline({ events }: { events: TimelineEvent[] }) {
++  return (
++    <div style={{ marginBottom: 32 }}>
++      <h3>Session Timeline</h3>
++      <div style={{ display: "flex", gap: 16, overflowX: "auto" }}>
++        {events.map((e, i) => (
++          <div
++            key={i}
++            style={{
++              minWidth: 160,
++              padding: 12,
++              border: "1px solid #ddd",
++              borderRadius: 6,
++              background: "#fff",
++            }}
++          >
++            <small>{new Date(e.timestamp).toLocaleTimeString()}</small>
++            <div style={{ marginTop: 6 }}>{e.label}</div>
++            {e.score !== undefined && (
++              <div style={{ fontWeight: "bold" }}>{e.score}%</div>
++            )}
++          </div>
++        ))}
++      </div>
++    </div>
++  );
++}
+diff --git a/showcase/src/components/trust/TrustBreakdown.tsx b/showcase/src/components/trust/TrustBreakdown.tsx
+new file mode 100644
+index 0000000..8b31e7a
+--- /dev/null
++++ b/showcase/src/components/trust/TrustBreakdown.tsx
+@@ -0,0 +1,29 @@
++type Signal = {
++  label: string;
++  impact: number;
++};
++
++export function TrustBreakdown({ signals }: { signals: Signal[] }) {
++  return (
++    <div style={{ marginBottom: 32 }}>
++      <h3>Why this score?</h3>
++      {signals.map((s, i) => (
++        <div
++          key={i}
++          style={{
++            display: "flex",
++            justifyContent: "space-between",
++            padding: "6px 0",
++          }}
++        >
++          <span>{s.label}</span>
++          <span>
++            {s.impact > 0 ? "↑" : "↓"} {Math.abs(s.impact)}%
++          </span>
++        </div>
++      ))}
++    </div>
++  );
++}
+diff --git a/showcase/src/components/identity/IdentityHistoryPanel.tsx b/showcase/src/components/identity/IdentityHistoryPanel.tsx
+new file mode 100644
+index 0000000..bfe9d03
+--- /dev/null
++++ b/showcase/src/components/identity/IdentityHistoryPanel.tsx
+@@ -0,0 +1,28 @@
++export function IdentityHistoryPanel({ identity }: { identity: any }) {
++  return (
++    <div
++      style={{
++        padding: 20,
++        background: "#f6f8fa",
++        borderRadius: 6,
++        marginBottom: 32,
++      }}
++    >
++      <h3>Identity History</h3>
++      <div>Known devices: {identity.knownDevices}</div>
++      <div>TLS families seen: {identity.knownTlsFamilies}</div>
++      <div>Behaviour stability: {identity.behaviourStability}</div>
++      <div>Reputation score: {identity.reputationScore}</div>
++    </div>
++  );
++}
+diff --git a/showcase/src/components/drilldown/TechnicalToggle.tsx b/showcase/src/components/drilldown/TechnicalToggle.tsx
+new file mode 100644
+index 0000000..c72d9a1
+--- /dev/null
++++ b/showcase/src/components/drilldown/TechnicalToggle.tsx
+@@ -0,0 +1,15 @@
++export function TechnicalToggle({
++  enabled,
++  onToggle,
++}: {
++  enabled: boolean;
++  onToggle: () => void;
++}) {
++  return (
++    <label style={{ display: "block", marginBottom: 12 }}>
++      <input type="checkbox" checked={enabled} onChange={onToggle} /> Show
++      technical details
++    </label>
++  );
++}
+diff --git a/showcase/src/components/drilldown/RawTelemetryPanel.tsx b/showcase/src/components/drilldown/RawTelemetryPanel.tsx
+new file mode 100644
+index 0000000..a8f4f01
+--- /dev/null
++++ b/showcase/src/components/drilldown/RawTelemetryPanel.tsx
+@@ -0,0 +1,18 @@
++export function RawTelemetryPanel({ telemetry }: { telemetry: any }) {
++  return (
++    <pre
++      style={{
++        maxHeight: 400,
++        overflow: "auto",
++        background: "#111",
++        color: "#0f0",
++        padding: 12,
++        fontSize: 12,
++      }}
++    >
++      {JSON.stringify(telemetry, null, 2)}
++    </pre>
++  );
++}
+diff --git a/showcase/src/services/showcaseApi.ts b/showcase/src/services/showcaseApi.ts
+new file mode 100644
+index 0000000..c1b9f5e
+--- /dev/null
++++ b/showcase/src/services/showcaseApi.ts
+@@ -0,0 +1,6 @@
++export async function fetchLatestSession() {
++  const res = await fetch("/api/showcase/session/latest");
++  if (!res.ok) throw new Error("Failed to load session");
++  return res.json();
++}
